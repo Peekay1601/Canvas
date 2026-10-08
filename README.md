@@ -26,3 +26,8 @@ npm run build   # type-checks and writes docs/index.html — commit it; Pages se
 ```
 
 After building, copy `docs/index.html` to the connector's `ui/canvas.html` to refresh the bundled fallback.
+
+## Rough Cut MCP
+
+`rough-cut-mcp/` is a separate, local MCP server: Claude logs a folder of footage against its script and writes a
+Premiere Pro rough cut. See [rough-cut-mcp/README.md](rough-cut-mcp/README.md).
