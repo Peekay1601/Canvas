@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import io
-import json
 import os
 import re
 import shutil
@@ -35,13 +35,25 @@ SKIP_DIRS = {
 STATE_DIR = ".roughcut"
 
 
-def require_ffmpeg() -> None:
-    missing = [tool for tool in ("ffmpeg", "ffprobe") if shutil.which(tool) is None]
-    if missing:
+@functools.cache
+def ffmpeg_exe() -> str:
+    """ffmpeg from the system if there is one, else the copy bundled with imageio-ffmpeg, so nothing needs installing."""
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    try:
+        import imageio_ffmpeg
+
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception as exc:  # no wheel for this platform, or the binary is missing
         raise RuntimeError(
-            f"{' and '.join(missing)} not found on PATH. Install ffmpeg (https://ffmpeg.org/download.html) "
-            "and restart Claude."
-        )
+            "ffmpeg isn't available. Install it (https://ffmpeg.org/download.html, or `brew install ffmpeg` on a "
+            "Mac) and restart Claude."
+        ) from exc
+
+
+def require_ffmpeg() -> None:
+    ffmpeg_exe()
 
 
 def clip_id_for(rel_path: str) -> str:
@@ -74,78 +86,63 @@ def walk_folder(folder: Path) -> Found:
     return Found(media, scripts, skipped)
 
 
-def _ratio(value: str | None) -> float:
-    if not value or value in ("0/0", "0"):
-        return 0.0
-    if "/" in value:
-        num, den = value.split("/", 1)
-        return float(num) / float(den) if float(den) else 0.0
-    return float(value)
-
-
 def probe(path: Path) -> dict:
-    out = subprocess.run(
-        ["ffprobe", "-v", "error", "-print_format", "json", "-show_format", "-show_streams", str(path)],
-        capture_output=True,
-        text=True,
-    )
-    if out.returncode != 0:
-        raise RuntimeError(out.stderr.strip() or "ffprobe failed")
-    info = json.loads(out.stdout)
-    streams = info.get("streams", [])
-    fmt = info.get("format", {})
-    video = next(
-        (s for s in streams if s.get("codec_type") == "video" and not s.get("disposition", {}).get("attached_pic")),
-        None,
-    )
-    audio = [s for s in streams if s.get("codec_type") == "audio"]
-    ext = path.suffix.lower()
+    import av
 
-    kind = "image" if ext in IMAGE_EXT else "video" if video else "audio"
-    result: dict = {"kind": kind, "duration": float(fmt.get("duration") or 0.0)}
-    if video:
-        fps = _ratio(video.get("r_frame_rate")) or _ratio(video.get("avg_frame_rate"))
-        width, height = int(video.get("width") or 0), int(video.get("height") or 0)
-        rotation = _rotation(video)
-        if rotation in (90, 270):
-            width, height = height, width
-        result.update(
-            fps=round(fps, 3) if kind == "video" else None,
-            width=width,
-            height=height,
-            codec=video.get("codec_name"),
+    ext = path.suffix.lower()
+    with av.open(str(path)) as container:
+        attached = getattr(getattr(av.stream, "Disposition", None), "attached_pic", 0)
+        video = next(
+            (v for v in container.streams.video if not (attached and v.disposition & attached)), None
         )
-        if not result["duration"] and video.get("duration"):
-            result["duration"] = float(video["duration"])
-    if audio:
-        result.update(
-            audio_channels=sum(int(s.get("channels") or 0) for s in audio),
-            audio_streams=len(audio),
-            sample_rate=int(audio[0].get("sample_rate") or 48000),
+        audio = list(container.streams.audio)
+        kind = "image" if ext in IMAGE_EXT else "video" if video else "audio"
+        duration = container.duration / av.time_base if container.duration else 0.0
+        result: dict = {"kind": kind}
+        if video:
+            ctx = video.codec_context
+            fps = video.base_rate or video.average_rate or video.guessed_rate
+            width, height = ctx.width, ctx.height
+            if kind == "video" and abs(_rotation(container, video)) % 180 == 90:
+                width, height = height, width  # phone footage shot vertical: Premiere shows it rotated
+            result.update(
+                fps=round(float(fps), 3) if kind == "video" and fps else None,
+                width=width,
+                height=height,
+                codec=ctx.name,
+            )
+            if not duration and video.duration and video.time_base:
+                duration = float(video.duration * video.time_base)
+        if audio:
+            result.update(
+                audio_channels=sum(a.codec_context.channels or 0 for a in audio),
+                audio_streams=len(audio),
+                sample_rate=audio[0].codec_context.sample_rate or 48000,
+            )
+        else:
+            result["audio_channels"] = 0
+        timecode = container.metadata.get("timecode") or next(
+            (st.metadata["timecode"] for st in container.streams if st.metadata.get("timecode")), None
         )
-    else:
-        result["audio_channels"] = 0
-    timecode = (fmt.get("tags") or {}).get("timecode") or next(
-        ((s.get("tags") or {}).get("timecode") for s in streams if (s.get("tags") or {}).get("timecode")), None
-    )
-    if timecode:
-        result["timecode"] = timecode
-    created = (fmt.get("tags") or {}).get("creation_time")
-    if created:
-        result["created"] = created
-    result["duration"] = round(result["duration"], 3)
+        if timecode:
+            result["timecode"] = timecode
+        if container.metadata.get("creation_time"):
+            result["created"] = container.metadata["creation_time"]
+    result["duration"] = round(duration, 3)
     return result
 
 
-def _rotation(stream: dict) -> int:
-    rotate = (stream.get("tags") or {}).get("rotate")
-    if rotate is None:
-        for side in stream.get("side_data_list") or []:
-            if "rotation" in side:
-                rotate = side["rotation"]
-    try:
-        return abs(int(float(rotate))) % 360 if rotate is not None else 0
-    except ValueError:
+def _rotation(container, video) -> int:
+    rotate = video.metadata.get("rotate")
+    if rotate is not None:
+        try:
+            return int(float(rotate))
+        except ValueError:
+            return 0
+    try:  # the display matrix only shows up on decoded frames
+        frame = next(container.decode(video=video.index))
+        return int(getattr(frame, "rotation", 0) or 0)
+    except Exception:
         return 0
 
 
@@ -162,7 +159,7 @@ def most_common_format(clips: list[dict]) -> tuple[int, int, float] | None:
 def grab_frame(path: Path, t: float, width: int) -> Image.Image | None:
     out = subprocess.run(
         [
-            "ffmpeg", "-v", "error", "-ss", f"{max(t, 0):.3f}", "-i", str(path),
+            ffmpeg_exe(), "-v", "error", "-ss", f"{max(t, 0):.3f}", "-i", str(path),
             "-frames:v", "1", "-vf", f"scale={width}:-2", "-f", "image2pipe", "-vcodec", "png", "-",
         ],
         capture_output=True,
@@ -217,7 +214,7 @@ def audio_activity(path: Path, duration: float, noise_db: float, min_silence: fl
     """Where there is sound vs. silence: takes, pauses between lines, 'action'/'cut' gaps."""
     out = subprocess.run(
         [
-            "ffmpeg", "-v", "info", "-nostats", "-i", str(path), "-vn",
+            ffmpeg_exe(), "-v", "info", "-nostats", "-i", str(path), "-vn",
             "-af", f"silencedetect=n={noise_db}dB:d={min_silence},volumedetect", "-f", "null", "-",
         ],
         capture_output=True,
@@ -249,7 +246,7 @@ def shot_changes(path: Path, threshold: float) -> list[float]:
     """Hard cuts inside a file (useful when one file holds several shots)."""
     out = subprocess.run(
         [
-            "ffmpeg", "-v", "info", "-nostats", "-i", str(path), "-an",
+            ffmpeg_exe(), "-v", "info", "-nostats", "-i", str(path), "-an",
             "-vf", f"scale=320:-2,select='gt(scene,{threshold})',showinfo", "-f", "null", "-",
         ],
         capture_output=True,

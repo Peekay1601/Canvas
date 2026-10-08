@@ -1,18 +1,20 @@
 [project]
 name = "roughcut-mcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local MCP server that lets Claude log your footage against the script and build a Premiere Pro rough cut."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"
 dependencies = [
     "mcp>=2.2,<3",
     "pillow>=10.1",
     "pypdf>=4",
+    # Reads video and audio with FFmpeg's libraries bundled in the wheel.
+    "av>=14",
+    # An ffmpeg binary for frame grabs and audio analysis when none is installed.
+    "imageio-ffmpeg>=0.5",
+    # Speech-to-text so Claude can match takes to script lines.
+    "faster-whisper>=1.1",
 ]
-
-[project.optional-dependencies]
-# Speech-to-text so Claude can match takes to script lines. Strongly recommended.
-transcribe = ["faster-whisper>=1.0"]
 
 [project.scripts]
 roughcut-mcp = "roughcut_mcp.server:main"

@@ -26,47 +26,25 @@ is the format Premiere has imported reliably for years. Importing it gives you e
 bins, clips linked to your original media (no copies, no transcodes), and the sequence. Then press Save and you
 have your `.prproj` in the folder you want.
 
-## Install (once)
+## Install in Claude Desktop (one click)
 
-You need **Python 3.10+**, **ffmpeg** and **uv**:
+1. Download [`dist/roughcut.mcpb`](dist/roughcut.mcpb).
+2. Double-click it with Claude Desktop open (or go to **Settings → Extensions → Advanced settings → Install
+   Extension…** and choose the file). Click **Install**.
+3. Optional: pick your usual **footage folder**, a **speech model** (`small` is a good start; `medium` is better
+   for Hindi/Hinglish if your computer is fast), and the **dialogue language** (`hi`, `en`, `ta`, …).
+4. In a new chat, say **"check the rough cut setup"**. Claude checks everything and walks you through the rest.
 
-- macOS: `brew install ffmpeg uv`
-- Windows: `winget install Gyan.FFmpeg astral-sh.uv`
+Claude Desktop installs Python and every dependency for you, including ffmpeg and the speech-to-text engine.
+The first time you transcribe, it downloads the Whisper model (about 500 MB for `small`) in the background.
+Works on macOS and Windows.
 
-Then, from this folder:
+### Or use it from Claude Code
 
-```sh
-uv tool install . --with faster-whisper
-```
-
-This installs the `roughcut-mcp` command. The first transcription downloads the Whisper model, about 500 MB for
-`small`.
-
-### Connect it to Claude Desktop
-
-Open **Settings → Developer → Edit Config** and add:
-
-```json
-{
-  "mcpServers": {
-    "roughcut": {
-      "command": "/Users/YOU/.local/bin/roughcut-mcp",
-      "env": {
-        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
-        "ROUGHCUT_WHISPER_MODEL": "small"
-      }
-    }
-  }
-}
-```
-
-On Windows, the command is `C:\\Users\\YOU\\.local\\bin\\roughcut-mcp.exe`. Leave out `PATH` if ffmpeg is already on
-your system PATH. Restart Claude Desktop afterwards.
-
-### Or connect it to Claude Code
+You need [uv](https://docs.astral.sh/uv/). From this folder:
 
 ```sh
-claude mcp add roughcut -- roughcut-mcp
+claude mcp add roughcut -- uv run --directory "$PWD" main.py
 ```
 
 ## Use it
@@ -88,13 +66,17 @@ When it's done, open Premiere Pro:
 Ask Claude for another pass ("tighten scene 4, try take 2 for the confession") and it writes `Rough Cut v2` next
 to v1. Import it the same way.
 
-## Settings (environment variables)
+## Settings
 
-| Variable | Default | What it does |
-|---|---|---|
-| `ROUGHCUT_WHISPER_MODEL` | `small` | `tiny`, `base`, `small`, `medium`, `large-v3`. Bigger is more accurate but slower. |
-| `ROUGHCUT_LANGUAGE` | auto | Force a language, e.g. `hi` for Hindi/Hinglish or `en` for English. |
-| `ROUGHCUT_WHISPER_DEVICE` | `auto` | `cuda` on an NVIDIA GPU; `cpu` otherwise. |
+In Claude Desktop, change these under **Settings → Extensions → Rough Cut for Premiere Pro**. Elsewhere, set them as
+environment variables.
+
+| Setting | Variable | Default | What it does |
+|---|---|---|---|
+| Footage folder | `ROUGHCUT_DEFAULT_FOLDER` | none | Folder used when you don't name one |
+| Speech model | `ROUGHCUT_WHISPER_MODEL` | `small` | `tiny`, `base`, `small`, `medium`, `large-v3`: bigger is more accurate and slower |
+| Dialogue language | `ROUGHCUT_LANGUAGE` | auto | e.g. `hi` for Hindi/Hinglish, `en` for English |
+| | `ROUGHCUT_WHISPER_DEVICE` | `auto` | `cuda` on an NVIDIA GPU |
 
 ## What it doesn't do (yet)
 
@@ -114,6 +96,7 @@ Files it writes inside your footage folder: `.roughcut/` (index, transcripts, cl
 
 | Tool | What it does |
 |---|---|
+| `check_setup` | Check that everything works, and walk you through setup and use |
 | `open_footage_folder` | Scan the folder and its subfolders, probe every file, find the script |
 | `list_footage` | Clip ids, formats, and what has been logged |
 | `read_script` | Script with line numbers and scene headings |
@@ -130,7 +113,6 @@ Files it writes inside your footage folder: `.roughcut/` (index, transcripts, cl
 
 ```sh
 pip install -e . pytest
-pytest
+pytest                                              # builds a fake shoot with ffmpeg and checks the XML
+npx @anthropic-ai/mcpb pack . dist/roughcut.mcpb     # rebuild the Claude Desktop extension after changes
 ```
-
-The tests generate a small fake shoot with ffmpeg and check the XML that comes out.

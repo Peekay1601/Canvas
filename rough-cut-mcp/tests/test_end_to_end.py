@@ -31,6 +31,11 @@ def shoot(tmp_path_factory) -> Path:
            "-c:v", "libx264", "-pix_fmt", "yuv420p", str(root / "Day 1" / "A Cam" / "A001_C002.mov"))
     ffmpeg("-f", "lavfi", "-i", "sine=frequency=330:duration=10", str(root / "Sound" / "music.wav"))
     ffmpeg("-f", "lavfi", "-i", "testsrc=size=640x360:rate=1", "-frames:v", "1", str(root / "still.png"))
+    ffmpeg("-f", "lavfi", "-i", "testsrc2=size=1920x1080:rate=30:duration=3", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+           str(root / "Day 1" / "phone.mp4"))
+    ffmpeg("-display_rotation", "90", "-i", str(root / "Day 1" / "phone.mp4"), "-c", "copy",
+           str(root / "Day 1" / "phone_vertical.mp4"))
+    (root / "Day 1" / "phone.mp4").unlink()
     (root / "Script.fountain").write_text(
         "INT. KITCHEN - NIGHT\n\nRIYA\nYou never called.\n\nEXT. ROOF - DAY\n\nARJUN\nI'm here now.\n"
     )
@@ -51,7 +56,7 @@ def text_of(content) -> str:
 
 def test_full_flow(shoot):
     out = text_of(call("open_footage_folder", {"folder": str(shoot)}))
-    assert "Video clips: 2" in out and "Audio files: 1" in out and "Stills: 1" in out
+    assert "Video clips: 3" in out and "Audio files: 1" in out and "Stills: 1" in out
     assert "Script.fountain" in out
     assert "1920x1080 @ 23.976" in out
 
@@ -101,7 +106,7 @@ def test_full_flow(shoot):
     # Every file is defined in full once in the bins and once in the sequence, and referenced by id after that.
     in_bins = [f for f in tree.find(".//bin").iter("file") if f.find("pathurl") is not None]
     in_seq = [f for f in seq.iter("file") if f.find("pathurl") is not None]
-    assert len(in_bins) == 4 and len({f.get("id") for f in in_bins}) == 4
+    assert len(in_bins) == 5 and len({f.get("id") for f in in_bins}) == 5
     assert sorted(f.get("id") for f in in_seq) == sorted({f.get("id") for f in seq.iter("file")})
     # Bins mirror the folders.
     names = [b.findtext("name") for b in tree.iter("bin")]
@@ -151,3 +156,44 @@ def test_transcript_search_finds_every_take(shoot):
 
     tx = text_of(call("get_transcript", {"folder": str(shoot), "clip_id": cid, "start": 3, "words": True}))
     assert "even@4.80" in tx and "Cut." not in tx
+
+
+def test_vertical_phone_footage_is_portrait(shoot):
+    from roughcut_mcp import media
+
+    info = media.probe(shoot / "Day 1" / "phone_vertical.mp4")
+    assert (info["width"], info["height"], info["fps"]) == (1080, 1920, 30.0)
+
+
+def test_bundled_ffmpeg_when_none_installed(shoot, monkeypatch):
+    from roughcut_mcp import media
+
+    media.ffmpeg_exe.cache_clear()
+    monkeypatch.setattr(media.shutil, "which", lambda name: None)
+    try:
+        assert "imageio_ffmpeg" in media.ffmpeg_exe()
+        frame = media.grab_frame(shoot / "Day 1" / "A Cam" / "A001_C001.mov", 1.0, 320)
+        assert frame is not None and frame.width == 320
+    finally:
+        media.ffmpeg_exe.cache_clear()
+
+
+def test_background_transcription(shoot, monkeypatch):
+    from types import SimpleNamespace
+
+    from roughcut_mcp import transcribe
+
+    class FakeModel:
+        def transcribe(self, path, **kwargs):
+            word = SimpleNamespace(start=0.5, end=0.9, word=" hello")
+            seg = SimpleNamespace(start=0.5, end=0.9, text=" hello", words=[word])
+            return iter([seg]), SimpleNamespace(language="en")
+
+    monkeypatch.setattr(transcribe, "_model", FakeModel())
+    call("open_footage_folder", {"folder": str(shoot)})
+    for path in (shoot / ".roughcut" / "transcripts").glob("*.json"):
+        path.unlink()
+    out = text_of(call("transcribe_footage", {"folder": str(shoot), "wait_seconds": 20}))
+    assert "Transcribed 3/3" in out, out  # two camera clips with sound + the music file
+    again = text_of(call("transcribe_footage", {"folder": str(shoot)}))
+    assert "Nothing left" in again

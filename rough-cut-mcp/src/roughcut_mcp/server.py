@@ -5,6 +5,7 @@ from __future__ import annotations
 import functools
 import json
 import re
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -16,7 +17,7 @@ from mcp.server.mcpserver import Image, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import BaseModel, Field
 
-from . import media, script, transcribe, xmeml
+from . import media, script, setting, transcribe, xmeml
 
 INSTRUCTIONS = """\
 Rough-cut assistant for a folder of footage plus its script. Work like an assistant editor, then an editor:
@@ -28,7 +29,9 @@ Rough-cut assistant for a folder of footage plus its script. Work like an assist
    shots around it. Cut on action and on emotional turns, let reactions breathe, trim dead air, prefer
    performance over script fidelity when a take improves on the page and say so in the note.
 4. build_rough_cut with the ordered edits; every edit gets a short label and a note explaining the choice.
-Times are always seconds within the source clip.
+Times are always seconds within the source clip. Pass folder "" to reuse the folder opened last (or the user's default).
+If the user is new to this, seems stuck, or something fails, call check_setup and walk them through it in plain
+language, one step at a time. Keep them posted while you work: transcription and logging a whole shoot take a while.
 """
 
 mcp = MCPServer("roughcut", instructions=INSTRUCTIONS)
@@ -50,10 +53,19 @@ def tool(fn):
 # ---------- state kept next to the footage, in <folder>/.roughcut ----------
 
 
+_last_folder = ""
+
+
 def _folder(folder: str) -> Path:
+    """The folder asked for, else the last one opened this session, else the default from the extension settings."""
+    global _last_folder
+    folder = folder.strip() or _last_folder or setting("ROUGHCUT_DEFAULT_FOLDER")
+    if not folder:
+        raise ValueError("Which folder is the footage in? Ask the user for the full path.")
     path = Path(folder).expanduser().resolve()
     if not path.is_dir():
         raise ValueError(f"Not a folder: {path}")
+    _last_folder = str(path)
     return path
 
 
@@ -104,12 +116,73 @@ def _tc(seconds: float) -> str:
 
 
 @tool
+def check_setup() -> str:
+    """Check that everything the rough cut needs is working (ffmpeg, video reading, the speech model, the default
+    folder) and get the step-by-step guide to give the user. Call it first with a new user, or when anything fails."""
+    lines = ["Setup check:"]
+    try:
+        exe = media.ffmpeg_exe()
+        source = "bundled copy" if "imageio_ffmpeg" in exe else "installed on this computer"
+        lines.append(f"✓ ffmpeg ({source})")
+    except RuntimeError as exc:
+        lines.append(f"✗ ffmpeg: {exc}")
+    try:
+        import av
+
+        lines.append(f"✓ Video reading (PyAV {av.__version__})")
+    except ImportError:
+        lines.append("✗ Video reading: PyAV is missing. Reinstall the extension.")
+    if transcribe.available():
+        state = transcribe.status()
+        model = transcribe.model_name()
+        if state == "ready":
+            lines.append(f"✓ Speech-to-text ready (Whisper '{model}')")
+        elif state == "loading":
+            lines.append(
+                f"… Speech-to-text: Whisper '{model}' is downloading/loading in the background (a few minutes and a "
+                "few hundred MB the first time). Everything else works meanwhile."
+            )
+        else:
+            lines.append(
+                f"✗ Speech-to-text: {state[7:]}. Usually no internet or no disk space for the model download; check "
+                "both and call check_setup again. A smaller model ('base') is quicker to fetch."
+            )
+    else:
+        lines.append("✗ Speech-to-text isn't installed (faster-whisper). Reinstall the extension.")
+    lines.append(f"  Dialogue language: {setting('ROUGHCUT_LANGUAGE') or 'auto-detect'}")
+    default = setting("ROUGHCUT_DEFAULT_FOLDER")
+    if default:
+        ok = Path(default).expanduser().is_dir()
+        lines.append(f"{'✓' if ok else '✗'} Default footage folder: {default}{'' if ok else ' (not found)'}")
+    else:
+        lines.append("  No default footage folder set: ask the user for the folder's full path.")
+    lines.append(SETUP_GUIDE)
+    return "\n".join(lines)
+
+
+SETUP_GUIDE = """
+Guide to give the user, in plain words:
+1. Put all the footage for the film in one folder (subfolders per day, camera or scene are fine) and put the script
+   in that same folder (Word, PDF, Final Draft, Fountain or text).
+2. Tell Claude the folder and anything the director wants (tone, length, favourite takes, scenes to drop).
+3. Claude scans everything, reads the script, transcribes the dialogue, watches and logs every clip, then builds the
+   cut. On a full shoot that takes a while; it reports as it goes.
+4. In Premiere Pro: File > New > Project (save it wherever you like), then File > Import and choose the XML in the
+   footage folder's RoughCut subfolder. The bins hold every clip; open the 'Rough Cut' sequence. Each edit has a
+   marker explaining the choice, and the cut list .md beside the XML has the same notes.
+5. Ask for changes ("tighten scene 4", "try the other take of the confession") and Claude writes a v2 to import.
+Camera RAW (.r3d/.braw) needs proxies; separately recorded sound should be synced in Premiere first."""
+
+
+@tool
 def open_footage_folder(folder: str) -> str:
     """Scan a footage folder and all its subfolders: finds every video, audio and still, probes duration, frame
     rate, resolution, audio channels and timecode, and finds the script. Safe to call again; it picks up new files
     and keeps your logs. Call this first."""
     media.require_ffmpeg()
     root = _folder(folder)
+    if transcribe.available():
+        transcribe.status()  # start loading the speech model now; it's needed soon
     found = media.walk_folder(root)
     old = (_load(root, "index.json", {}) or {}).get("clips", {})
 
@@ -167,9 +240,9 @@ def open_footage_folder(folder: str) -> str:
     if errors:
         lines.append("Unreadable: " + "; ".join(f"{c['rel_path']} ({c['error'][:80]})" for c in errors[:10]))
     lines.append(
-        f"Transcribed: {transcribed}/{len(kinds['video']) + len(kinds['audio'])}"
+        f"Transcribed: {transcribed}/{sum(1 for c in good if c.get('audio_channels'))} clips with sound"
         + ("" if transcribe.available() else
-           "  (speech-to-text not installed: pip install 'roughcut-mcp[transcribe]' to match takes to lines)")
+           "  (speech-to-text isn't installed; call check_setup)")
     )
     return "\n".join(lines)
 
@@ -235,39 +308,76 @@ def read_script(folder: str, script_file: str = "", start_line: int = 1, max_lin
     return "\n".join(out)
 
 
+# One background transcription job per footage folder: a single long take can take minutes on a CPU, longer than a
+# tool call may last, so calls start the job and report its progress.
+_jobs: dict[str, dict] = {}
+
+
+def _transcribe_job(root: Path, clips: dict, todo: list[str], language: str | None, job: dict) -> None:
+    for cid in todo:
+        job["current"] = cid
+        _save(root, f"transcripts/{cid}.json", transcribe.transcribe(Path(clips[cid]["path"]), language))
+        job["done"].append(cid)
+    job["current"] = None
+
+
 @tool
 def transcribe_footage(
-    folder: str, clip_ids: list[str] | None = None, language: str = "", time_budget_seconds: int = 50
+    folder: str, clip_ids: list[str] | None = None, language: str = "", wait_seconds: int = 40
 ) -> str:
-    """Speech-to-text for clips with sound (all of them if clip_ids is empty), cached so it only runs once per
-    clip. Works in batches to stay inside tool timeouts: call again until it reports nothing left. language is an
-    optional code like 'hi', 'en', 'ta'; leave empty to auto-detect (Hinglish usually works best as 'hi')."""
+    """Speech-to-text for every clip with sound (or just clip_ids), cached so each clip is only done once. Runs in
+    the background: each call starts or continues the job, waits up to wait_seconds, and reports progress. Call
+    again until nothing is left; you can view and log clips in between. language is an optional code like 'hi',
+    'en', 'ta'; leave empty to auto-detect (for Hinglish, 'hi' usually works best)."""
     if not transcribe.available():
-        return (
-            "Speech-to-text isn't installed. On the user's machine run: pip install 'roughcut-mcp[transcribe]' "
-            "(or add faster-whisper), then restart Claude. You can still log clips by viewing them."
-        )
+        return "Speech-to-text isn't installed (faster-whisper). Call check_setup and help the user fix it."
     root = _folder(folder)
     clips = _index(root)["clips"]
-    wanted = clip_ids or sorted(clips, key=lambda i: clips[i]["rel_path"].lower())
-    todo = [
-        i for i in wanted
-        if i in clips and clips[i].get("audio_channels") and _transcript(root, i) is None
-    ]
-    started, done = time.monotonic(), []
-    for cid in todo:
-        if done and time.monotonic() - started > time_budget_seconds:
-            break
-        result = transcribe.transcribe(Path(clips[cid]["path"]), language or None)
-        _save(root, f"transcripts/{cid}.json", result)
-        done.append(cid)
-    left = len(todo) - len(done)
-    summary = [f"Transcribed {len(done)} clip(s) this call; {left} left" + (" — call again." if left else ".")]
-    for cid in done:
-        tx = _transcript(root, cid)
-        first = " ".join(s["text"] for s in tx["segments"])[:140]
-        summary.append(f"{cid} {clips[cid]['rel_path']} [{tx.get('language')}]: {first or '(no speech)'}")
-    return "\n".join(summary)
+    deadline = time.monotonic() + max(0, min(wait_seconds, 55))
+
+    while (state := transcribe.status()) == "loading" and time.monotonic() < deadline:
+        time.sleep(1)
+    if state == "loading":
+        return (
+            f"The speech model ({transcribe.model_name()}) is still downloading/loading; the first time takes a few "
+            "minutes. Call transcribe_footage again shortly; meanwhile you can read the script and view clips."
+        )
+    if state.startswith("error"):
+        return f"The speech model couldn't load ({state[7:]}). Call check_setup and help the user fix it."
+
+    job = _jobs.get(str(root))
+    if job is None or not job["thread"].is_alive():
+        wanted = clip_ids or sorted(clips, key=lambda i: clips[i]["rel_path"].lower())
+        todo = [
+            i for i in wanted
+            if i in clips and clips[i].get("audio_channels") and _transcript(root, i) is None
+        ]
+        if not todo:
+            total = sum(1 for c in clips.values() if c.get("audio_channels"))
+            return f"Nothing left to transcribe ({total} clips with sound are done)."
+        job = {"done": [], "reported": 0, "current": None, "total": len(todo)}
+        job["thread"] = threading.Thread(
+            target=_transcribe_job, args=(root, clips, todo, language or None, job), daemon=True
+        )
+        _jobs[str(root)] = job
+        job["thread"].start()
+
+    while job["thread"].is_alive() and time.monotonic() < deadline:
+        time.sleep(0.5)
+
+    new = job["done"][job["reported"]:]
+    job["reported"] = len(job["done"])
+    left = job["total"] - len(job["done"])
+    lines = [f"Transcribed {len(job['done'])}/{job['total']} clips; {len(new)} new since last check."]
+    if left:
+        current = clips.get(job["current"] or "", {}).get("rel_path", "")
+        lines.append(f"{left} left — working on {current}. Call again to keep going." if current else f"{left} left.")
+    for cid in new:
+        tx = _transcript(root, cid) or {}
+        said = " ".join(seg["text"] for seg in tx.get("segments", []))[:140]
+        problem = f" (couldn't read audio: {tx['error'][:80]})" if tx.get("error") else ""
+        lines.append(f"{cid} {clips[cid]['rel_path']} [{tx.get('language')}]: {said or '(no speech)'}{problem}")
+    return "\n".join(lines)
 
 
 @tool

@@ -1,0 +1,77 @@
+{
+  "manifest_version": "0.4",
+  "name": "roughcut",
+  "display_name": "Rough Cut for Premiere Pro",
+  "version": "0.2.0",
+  "description": "Claude logs your footage against the script and builds a Premiere Pro rough cut, judged on emotion and continuity.",
+  "long_description": "Point Claude at a folder of footage with the script inside it. Claude scans every subfolder, reads the script, transcribes the dialogue on your computer, watches each clip for performance, emotion and continuity, logs every take, and writes a rough cut that Premiere Pro imports: all clips in bins mirroring your folders, plus the cut sequence with a marker on every edit explaining the choice.\n\nEverything runs on your computer. Your media is never copied, moved or uploaded; Claude only sees frames, transcripts and the script.",
+  "author": {
+    "name": "Chai Shots"
+  },
+  "icon": "icon.png",
+  "server": {
+    "type": "uv",
+    "entry_point": "main.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run", "--directory", "${__dirname}", "main.py"],
+      "env": {
+        "ROUGHCUT_DEFAULT_FOLDER": "${user_config.footage_folder}",
+        "ROUGHCUT_WHISPER_MODEL": "${user_config.whisper_model}",
+        "ROUGHCUT_LANGUAGE": "${user_config.language}"
+      }
+    }
+  },
+  "user_config": {
+    "footage_folder": {
+      "type": "directory",
+      "title": "Footage folder",
+      "description": "Optional. The folder Claude uses when you don't name one: the footage plus the script.",
+      "required": false
+    },
+    "whisper_model": {
+      "type": "string",
+      "title": "Speech model",
+      "description": "Whisper model for transcribing dialogue: tiny, base, small, medium or large-v3. Bigger is more accurate but slower and a bigger first download.",
+      "default": "small",
+      "required": false
+    },
+    "language": {
+      "type": "string",
+      "title": "Dialogue language",
+      "description": "Optional language code, e.g. hi (Hindi/Hinglish), en, ta, te. Leave empty to auto-detect.",
+      "default": "",
+      "required": false
+    }
+  },
+  "tools": [
+    { "name": "check_setup", "description": "Check everything works and get the step-by-step guide" },
+    { "name": "open_footage_folder", "description": "Scan the footage folder and all subfolders, find the script" },
+    { "name": "list_footage", "description": "Clip ids, formats and what has been logged" },
+    { "name": "read_script", "description": "Read the script with scene headings" },
+    { "name": "transcribe_footage", "description": "Transcribe the dialogue in every clip, on your computer" },
+    { "name": "get_transcript", "description": "Timestamped dialogue for one clip" },
+    { "name": "search_transcripts", "description": "Find every take of a script line" },
+    { "name": "overview_footage", "description": "One frame per clip to group the footage" },
+    { "name": "view_clip", "description": "Watch a clip as a contact sheet of frames" },
+    { "name": "analyze_clip_audio", "description": "Find sound, silence and shot changes in a clip" },
+    { "name": "log_clip", "description": "Save scene, take, rating, emotion and continuity notes" },
+    { "name": "build_rough_cut", "description": "Write the Premiere Pro rough cut and cut list" }
+  ],
+  "prompts": [
+    {
+      "name": "rough_cut",
+      "description": "Do a full rough cut of a footage folder against its script",
+      "arguments": ["folder", "notes"],
+      "text": "Make a rough cut of the footage in ${arguments.folder}. Director's notes: ${arguments.notes}. Start with check_setup, then open the folder, read the whole script, transcribe everything, and log every clip (look at it, don't just read the transcript). Pick takes for emotion first, then technical quality and continuity; cut on action and emotional turns, keep reactions, trim dead air. Build the cut with a note on every edit, then summarise the choices, alternates worth trying, and any coverage gaps against the script."
+    }
+  ],
+  "compatibility": {
+    "platforms": ["darwin", "win32"],
+    "runtimes": {
+      "python": ">=3.10 <3.14"
+    }
+  },
+  "keywords": ["premiere", "video", "editing", "rough cut", "film", "footage"],
+  "license": "MIT"
+}
