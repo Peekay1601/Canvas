@@ -54,6 +54,26 @@ def tool(fn):
 
 
 _last_folder = ""
+# In web mode only the folders shared at startup (and their subfolders) can be opened. Empty = no restriction.
+_shared: list[Path] = []
+
+
+def share_only(folders: list[Path]) -> None:
+    global _last_folder
+    _shared[:] = folders
+    _last_folder = str(folders[0])
+
+
+def _inside(path: Path, root: Path) -> bool:
+    return path == root or root in path.parents
+
+
+def _check_shared(path: Path) -> None:
+    if _shared and not any(_inside(path, root) for root in _shared):
+        raise ValueError(
+            f"{path} isn't shared with Claude. Shared folders: {', '.join(map(str, _shared))}. To add one, restart "
+            "Rough Cut web mode with another --folder."
+        )
 
 
 def _folder(folder: str) -> Path:
@@ -63,6 +83,7 @@ def _folder(folder: str) -> Path:
     if not folder:
         raise ValueError("Which folder is the footage in? Ask the user for the full path.")
     path = Path(folder).expanduser().resolve()
+    _check_shared(path)
     if not path.is_dir():
         raise ValueError(f"Not a folder: {path}")
     _last_folder = str(path)
@@ -280,6 +301,8 @@ def read_script(folder: str, script_file: str = "", start_line: int = 1, max_lin
     scripts = _index(root)["scripts"]
     if script_file:
         path = (root / script_file).resolve()
+        if not _inside(path, root) or not path.is_file():
+            raise ValueError(f"No script file {script_file!r} inside {root}.")
     elif len(scripts) == 1:
         path = root / scripts[0]
     elif not scripts:
@@ -578,6 +601,7 @@ def build_rough_cut(
     width, height, fps = width or fmt[0], height or fmt[1], fps or fmt[2]
     project_name = project_name or root.name
     out_dir = Path(output_folder).expanduser().resolve() if output_folder else root / "RoughCut"
+    _check_shared(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     cut = [
@@ -640,7 +664,15 @@ def rough_cut(folder: str, notes: str = "") -> str:
 
 
 def main() -> None:
-    mcp.run()
+    """`roughcut-mcp` talks to Claude Desktop/Code over stdio; `roughcut-mcp web …` serves Claude on the web."""
+    import sys
+
+    if sys.argv[1:2] == ["web"]:
+        from . import web
+
+        web.main(sys.argv[2:])
+    else:
+        mcp.run()
 
 
 if __name__ == "__main__":

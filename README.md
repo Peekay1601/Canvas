@@ -31,5 +31,6 @@ After building, copy `docs/index.html` to the connector's `ui/canvas.html` to re
 
 `rough-cut-mcp/` is a separate, local MCP server: Claude logs a folder of footage against its script and writes a
 Premiere Pro rough cut. It installs in Claude Desktop with one click from
-[`rough-cut-mcp/dist/roughcut.mcpb`](rough-cut-mcp/dist/roughcut.mcpb). See
+[`rough-cut-mcp/dist/roughcut.mcpb`](rough-cut-mcp/dist/roughcut.mcpb), and works with Claude on the web through
+[`rough-cut-mcp/dist/Rough Cut Web.zip`](rough-cut-mcp/dist/Rough%20Cut%20Web.zip). See
 [rough-cut-mcp/README.md](rough-cut-mcp/README.md).

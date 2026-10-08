@@ -39,6 +39,33 @@ Claude Desktop installs Python and every dependency for you, including ffmpeg an
 The first time you transcribe, it downloads the Whisper model (about 500 MB for `small`) in the background.
 Works on macOS and Windows.
 
+## Use it from Claude on the web (claude.ai)
+
+Claude on the web runs in the cloud, but your footage stays on your computer. So Rough Cut runs on your computer
+and a secure Cloudflare tunnel lets claude.ai reach it. Your media is never uploaded; Claude only sees frames,
+transcripts and the script, the same as on desktop.
+
+1. Download [`dist/Rough Cut Web.zip`](dist/Rough%20Cut%20Web.zip) and unzip it.
+2. Double-click **Start Rough Cut Web**: `.command` on a Mac, `.bat` on Windows. On a Mac, if it says the developer
+   can't be verified, right-click it and choose **Open**. The first run installs what it needs, which takes a few
+   minutes.
+3. Choose your footage folder (with the script inside it). The window prints a connector URL like
+   `https://something.trycloudflare.com/<secret>/mcp`.
+4. In claude.ai, go to **Settings → Connectors → Add custom connector**, name it **Rough Cut**, paste the URL, and
+   click **Add**. In a chat, enable it from the tools menu and say **"check the rough cut setup"**.
+5. Keep the window open while Claude works. Close it to cut off access.
+
+Things to know:
+
+- **The URL is the key.** It contains a long random secret: don't share it. Claude can only open the folder you
+  chose (and its subfolders). Run `roughcut-mcp web --new-token` to invalidate an old URL.
+- **The tunnel address changes every time you start it.** Edit the connector's URL in claude.ai after each restart.
+  For an address that never changes, use your own tunnel (for example ngrok's free static domain or Tailscale
+  Funnel) and run
+  `uv run roughcut-mcp web --folder "/path/to/footage" --no-tunnel --public-url https://your-address`.
+- Your computer must stay awake and online while Claude works.
+- Several folders: add `--folder` once per folder.
+
 ### Or use it from Claude Code
 
 You need [uv](https://docs.astral.sh/uv/). From this folder:
@@ -113,6 +140,6 @@ Files it writes inside your footage folder: `.roughcut/` (index, transcripts, cl
 
 ```sh
 pip install -e . pytest
-pytest                                              # builds a fake shoot with ffmpeg and checks the XML
-npx @anthropic-ai/mcpb pack . dist/roughcut.mcpb     # rebuild the Claude Desktop extension after changes
+pytest                          # fake shoot with ffmpeg; checks the XML and the web connector
+python scripts/build_dist.py    # rebuild dist/roughcut.mcpb and "dist/Rough Cut Web.zip" after changes
 ```

@@ -6,4 +6,5 @@ __pycache__/
 tests/
 dist/
 *.mcpb
-uv.lock
+scripts/
+Start Rough Cut Web.*

@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "roughcut",
   "display_name": "Rough Cut for Premiere Pro",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Claude logs your footage against the script and builds a Premiere Pro rough cut, judged on emotion and continuity.",
   "long_description": "Point Claude at a folder of footage with the script inside it. Claude scans every subfolder, reads the script, transcribes the dialogue on your computer, watches each clip for performance, emotion and continuity, logs every take, and writes a rough cut that Premiere Pro imports: all clips in bins mirroring your folders, plus the cut sequence with a marker on every edit explaining the choice.\n\nEverything runs on your computer. Your media is never copied, moved or uploaded; Claude only sees frames, transcripts and the script.",
   "author": {
