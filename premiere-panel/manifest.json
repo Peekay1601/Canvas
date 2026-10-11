@@ -25,7 +25,11 @@
   ],
   "requiredPermissions": {
     "network": {
-      "domains": ["https://api.elevenlabs.io", "https://api.anthropic.com"]
+      "domains": [
+        "https://api.elevenlabs.io",
+        "https://api.anthropic.com",
+        "https://storage.googleapis.com"
+      ]
     },
     "localFileSystem": "fullAccess"
   }

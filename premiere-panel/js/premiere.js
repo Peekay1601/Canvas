@@ -103,5 +103,107 @@
     if (done === false) throw new Error("Premiere refused to place " + projectItem.name + " on the timeline.");
   }
 
-  window.AIA.premiere = { getProject, getContext, saveAudio, getBin, importFile, placeOnTimeline };
+  // ----- voice change helpers --------------------------------------------
+
+  // Audio clips selected on the timeline, with where they sit and which part of the source they use.
+  async function getSelectedAudioClips(project) {
+    const seq = await project.getActiveSequence();
+    if (!seq) throw new Error("Open a sequence first.");
+    const selection = await seq.getSelection();
+    const items = (await selection.getTrackItems()).filter((it) => it instanceof ppro.AudioClipTrackItem);
+    const clips = [];
+    for (const item of items) {
+      const clip = ppro.ClipProjectItem.cast(await item.getProjectItem());
+      if (!clip) continue;
+      const [path, inPt, outPt, start, end, track, name] = await Promise.all([
+        clip.getMediaFilePath(),
+        item.getInPoint(),
+        item.getOutPoint(),
+        item.getStartTime(),
+        item.getEndTime(),
+        item.getTrackIndex(),
+        item.getName(),
+      ]);
+      clips.push({
+        name,
+        path,
+        inSec: inPt.seconds,
+        outSec: outPt.seconds,
+        startSec: start.seconds,
+        endSec: end.seconds,
+        trackIndex: track, // 0-based audio track
+      });
+    }
+    return clips.sort((a, b) => a.startSec - b.startSec);
+  }
+
+  // Reads a media file from disk by its full path.
+  async function readFileBytes(path) {
+    const fs = uxp.storage.localFileSystem;
+    const candidates = ["file:" + path, "file://" + path.replace(/\\/g, "/"), "file:///" + path.replace(/\\/g, "/").replace(/^\/+/, "")];
+    for (const url of candidates) {
+      try {
+        const entry = await fs.getEntryWithUrl(url);
+        if (entry && entry.isFile) return await entry.read({ format: uxp.storage.formats.binary });
+      } catch (e) {
+        // try the next spelling
+      }
+    }
+    throw new Error("Couldn't read " + path);
+  }
+
+  // First audio track at or below `fromIndex` (0-based) that is empty between startSec and endSec, or -1.
+  async function findFreeAudioTrack(seq, fromIndex, startSec, endSec) {
+    const count = await seq.getAudioTrackCount();
+    for (let i = fromIndex; i < count; i++) {
+      const track = await seq.getAudioTrack(i);
+      const items = await track.getTrackItems(ppro.Constants.TrackItemType.CLIP, false);
+      let busy = false;
+      for (const it of items) {
+        const [s, e] = await Promise.all([it.getStartTime(), it.getEndTime()]);
+        if (s.seconds < endSec - 0.001 && e.seconds > startSec + 0.001) { busy = true; break; }
+      }
+      if (!busy) return i;
+    }
+    return -1;
+  }
+
+  // Overwrite-edits a project item onto a 0-based audio track at an absolute timeline time.
+  // When inSec/outSec are given, only that part of the item is used.
+  async function placeAt(project, projectItem, trackIndex, atSec, inSec, outSec) {
+    const seq = await project.getActiveSequence();
+    if (!seq) throw new Error("Open a sequence to place clips on the timeline.");
+    const editor = ppro.SequenceEditor.getEditor(seq);
+    const clip = inSec != null ? ppro.ClipProjectItem.cast(projectItem) : null;
+    let done = false;
+    project.lockedAccess(() => {
+      done = project.executeTransaction((compound) => {
+        if (clip) {
+          compound.addAction(clip.createSetInOutPointsAction(
+            ppro.TickTime.createWithSeconds(inSec),
+            ppro.TickTime.createWithSeconds(outSec)
+          ));
+        }
+        compound.addAction(editor.createOverwriteItemAction(projectItem, ppro.TickTime.createWithSeconds(Math.max(0, atSec)), 0, trackIndex));
+      }, "Place " + projectItem.name);
+    });
+    if (done === false) throw new Error("Premiere refused to place " + projectItem.name + " on the timeline.");
+  }
+
+  // Plays an audio file in Premiere's Source Monitor without adding it to the project.
+  // Saved to the temp folder so previews don't pile up next to real files.
+  async function playPreview(name, bytes) {
+    const tmp = await uxp.storage.localFileSystem.getTemporaryFolder();
+    const file = await tmp.createFile(slug(name) + "_" + Date.now() + ".mp3", { overwrite: true });
+    await file.write(bytes, { format: uxp.storage.formats.binary });
+    const opened = await ppro.SourceMonitor.openFilePath(file.nativePath);
+    if (!opened) throw new Error("Premiere couldn't open the preview.");
+    await ppro.SourceMonitor.play(1.0);
+  }
+
+  window.AIA.premiere = {
+    playPreview,
+    getProject, getContext, saveAudio, getBin, importFile, placeOnTimeline,
+    getSelectedAudioClips, readFileBytes, findFreeAudioTrack, placeAt,
+  };
 })();

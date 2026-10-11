@@ -30,20 +30,50 @@
     return resp;
   }
 
+  const OWN_CATEGORIES = ["cloned", "generated", "professional"];
+
+  // Every voice in the user's ElevenLabs account, their own voices first.
   async function listVoices() {
-    const resp = await request("/v2/voices", { query: { page_size: 100 } });
-    const data = await resp.json();
-    return (data.voices || []).map((v) => ({
-      voice_id: v.voice_id,
-      name: v.name,
-      description: [v.labels && Object.values(v.labels).join(", "), v.description].filter(Boolean).join(" — "),
-    }));
+    const all = [];
+    let token = null;
+    for (let page = 0; page < 10; page++) {
+      const resp = await request("/v2/voices", { query: { page_size: 100, next_page_token: token } });
+      const data = await resp.json();
+      (data.voices || []).forEach((v) => all.push(v));
+      if (!data.has_more || !data.next_page_token) break;
+      token = data.next_page_token;
+    }
+    const voices = all.map((v) => {
+      const labels = v.labels ? Object.values(v.labels).filter(Boolean) : [];
+      return {
+        voice_id: v.voice_id,
+        name: v.name,
+        category: v.category || "",
+        own: OWN_CATEGORIES.indexOf(v.category) !== -1,
+        labels,
+        previewUrl: v.preview_url || "",
+        description: [labels.join(", "), v.description].filter(Boolean).join(" — "),
+      };
+    });
+    voices.sort((a, b) => (a.own === b.own ? a.name.localeCompare(b.name) : a.own ? -1 : 1));
+    return voices;
   }
 
-  async function textToSpeech(voiceId, text) {
+  async function deleteVoice(voiceId) {
+    await request("/v1/voices/" + encodeURIComponent(voiceId), { method: "DELETE" });
+  }
+
+  // Downloads a voice's sample clip.
+  async function downloadPreview(url) {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error("Couldn't download the preview (" + resp.status + ").");
+    return resp.arrayBuffer();
+  }
+
+  async function textToSpeech(voiceId, text, outputFormat) {
     const resp = await request("/v1/text-to-speech/" + encodeURIComponent(voiceId), {
       method: "POST",
-      query: { output_format: S().get("outputFormat") },
+      query: { output_format: outputFormat || S().get("outputFormat") },
       body: { text, model_id: S().get("ttsModel") },
     });
     return resp.arrayBuffer();
@@ -204,9 +234,45 @@
     return (await resp.json()).voice_id;
   }
 
+  // A short MP3 line in a voice, for auditioning voices that have no stored sample.
+  function speakSample(voiceId, text) {
+    return textToSpeech(voiceId, text, "mp3_44100_128");
+  }
+
+  // ----- voice changer (speech to speech) --------------------------------
+
+  // Re-performs a recording in another voice, keeping timing and delivery.
+  // Returns bytes ready to write to a .mp3 / .wav file.
+  async function changeVoice(voiceId, fileName, bytes, removeNoise) {
+    const key = await S().getKey("elevenlabs");
+    if (!key) throw new Error("Add your ElevenLabs API key in Settings.");
+    if (!voiceId) throw new Error("Pick the voice to change into.");
+    const fmt = S().get("outputFormat");
+    const ext = (fileName.split(".").pop() || "").toLowerCase();
+    const { body, contentType } = multipart(
+      { model_id: "eleven_multilingual_sts_v2", remove_background_noise: removeNoise ? "true" : "false" },
+      [{ field: "audio", name: fileName, type: AUDIO_TYPES[ext] || "application/octet-stream", data: bytes }]
+    );
+    const resp = await fetch(
+      BASE + "/v1/speech-to-speech/" + encodeURIComponent(voiceId) + "?output_format=" + encodeURIComponent(fmt),
+      { method: "POST", headers: { "xi-api-key": key, "Content-Type": contentType }, body }
+    );
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      const d = data.detail;
+      throw new Error("ElevenLabs " + resp.status + ": " + ((d && (d.message || d)) || resp.statusText));
+    }
+    const out = await resp.arrayBuffer();
+    if (fmt.startsWith("pcm_")) return pcmToWav(out, parseInt(fmt.split("_")[1], 10) || 44100);
+    return out;
+  }
+
   function fileExtension() {
     return S().get("outputFormat").startsWith("pcm") ? "wav" : "mp3";
   }
 
-  window.AIA.eleven = { listVoices, generate, fileExtension, cloneVoice, designVoice, saveDesignedVoice };
+  window.AIA.eleven = {
+    listVoices, deleteVoice, downloadPreview, speakSample, generate, fileExtension,
+    cloneVoice, designVoice, saveDesignedVoice, changeVoice,
+  };
 })();
