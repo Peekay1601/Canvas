@@ -27,6 +27,7 @@
       <button class="tab" data-tab="cast"><span class="tab-icon">🎭</span><span class="tab-label">Cast</span></button>
       <button class="tab" data-tab="sound"><span class="tab-icon">🔊</span><span class="tab-label">Sound</span></button>
       <button class="tab" data-tab="music"><span class="tab-icon">🎵</span><span class="tab-label">Music</span></button>
+      <button class="tab" data-tab="mix"><span class="tab-icon">🎚</span><span class="tab-label">Mix</span></button>
       <button class="tab" data-tab="library"><span class="tab-icon">📚</span><span class="tab-label">Library</span></button>
       <button class="tab" data-tab="voices"><span class="tab-icon">🎙</span><span class="tab-label">Voices</span></button>
       <button class="tab" data-tab="tools"><span class="tab-icon">🧰</span><span class="tab-label">Tools</span></button>
@@ -38,14 +39,30 @@
       <section id="tab-film" class="pane active">
         <div class="hero">
           <div class="hero-title">Start here</div>
-          <div class="hero-text">Three steps: add your script, grab stills from the timeline, and let Claude find the characters and every sound the film needs.</div>
+          <div class="hero-text">Three steps: add your dubbing files, cue sheet and script, grab stills from the timeline, and let Claude find the characters and every sound the film needs.</div>
         </div>
 
         <div class="card step-card" id="stepScript">
-          <div class="step-head"><span class="step-num">1</span><span class="step-title">Script</span><span class="tag">optional</span><span id="scriptCheck" class="check hidden">✓</span></div>
-          <p class="hint">Backup reference for names and lines. The picture always comes first. TXT, Fountain, FDX, SRT or PDF.</p>
-          <div id="scriptInfo" class="file-chip hidden"><span id="scriptName" class="grow"></span><button id="scriptRemoveBtn" class="btn ghost small">Remove</button></div>
-          <button id="scriptBtn" class="btn block">Upload script…</button>
+          <div class="step-head"><span class="step-num">1</span><span class="step-title">Script &amp; dubbing</span><span id="scriptCheck" class="check hidden">✓</span></div>
+          <p class="hint">Character names come from your dubbing file names and the dubbing cue sheet. The script is backup reference.</p>
+
+          <div class="upload-row">
+            <div class="upload-label">🎧 Dubbing files <span class="muted small">one full file per character</span></div>
+            <div id="dubFileList"></div>
+            <button id="dubFilesBtn" class="btn block">Add dubbing files…</button>
+          </div>
+
+          <div class="upload-row">
+            <div class="upload-label">🗒 Dubbing cue sheet <span class="muted small">CSV, TXT or PDF</span></div>
+            <div id="dubSheetInfo" class="file-chip hidden"><span id="dubSheetName" class="grow"></span><button id="dubSheetRemoveBtn" class="btn ghost small">Remove</button></div>
+            <button id="dubSheetBtn" class="btn block">Upload cue sheet…</button>
+          </div>
+
+          <div class="upload-row">
+            <div class="upload-label">📄 Script <span class="muted small">TXT, Fountain, FDX, SRT or PDF</span></div>
+            <div id="scriptInfo" class="file-chip hidden"><span id="scriptName" class="grow"></span><button id="scriptRemoveBtn" class="btn ghost small">Remove</button></div>
+            <button id="scriptBtn" class="btn block">Upload script…</button>
+          </div>
         </div>
 
         <div class="card step-card" id="stepStills">
@@ -85,9 +102,12 @@
           <div class="empty-title">No characters yet</div>
           <div class="empty-text">Go to <b>Film</b>, grab stills and press <b>Analyse film</b>. Each character shows up here with a still, a voice picker and three voice options to approve.</div>
         </div>
-        <div id="castBar" class="summary-bar hidden">
-          <span id="castSummary" class="grow"></span>
-          <button id="castChangeAllBtn" class="btn primary small">Change all approved</button>
+        <div id="castBar" class="card hidden">
+          <div class="summary-bar"><span id="castSummary" class="grow"></span></div>
+          <p class="hint">Tick the characters to process. Map each one's dub audio (a full file or a Premiere track), approve a voice, then change them all as single layers.</p>
+          <label class="toggle"><input type="checkbox" id="castMuteSource" checked /><span>Mute the original track after converting it</span></label>
+          <label class="toggle"><input type="checkbox" id="castDenoise" /><span>Remove background noise</span></label>
+          <button id="castChangeAllBtn" class="btn primary block">🔁 Change voice for selected</button>
         </div>
         <div id="castGrid" class="card-grid"></div>
       </section>
@@ -167,17 +187,57 @@
         <p class="hint center">Everything you generate is saved in <b>Library → Music</b>, grouped by mood.</p>
       </section>
 
+      <!-- ================= MIX ================= -->
+      <section id="tab-mix" class="pane">
+        <div class="hero">
+          <div class="hero-title">One file per layer</div>
+          <div class="hero-text">Combines the panel's dubbing, music and sound that are on your timeline right now into single WAV files, as stems, one full mix, or both.</div>
+        </div>
+        <div class="card">
+          <div class="section-title">What to include</div>
+          <label class="toggle"><input type="checkbox" id="mixDialogue" checked /><span>🗣 Dubbing (all character layers)</span></label>
+          <label class="toggle"><input type="checkbox" id="mixMusic" checked /><span>🎵 Music</span></label>
+          <label class="toggle"><input type="checkbox" id="mixSound" checked /><span>🔊 Sound effects</span></label>
+          <div class="segmented small" id="mixSoundSplit">
+            <button class="seg active" data-value="one">One SFX stem</button>
+            <button class="seg" data-value="five">5 stems: ambience, foley, human, hard, designed</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-title">Import as</div>
+          <div class="segmented" id="mixOutput">
+            <button class="seg active" data-value="stems">Stems</button>
+            <button class="seg" data-value="mixed">Everything mixed</button>
+            <button class="seg" data-value="both">Both</button>
+          </div>
+          <label class="toggle"><input type="checkbox" id="mixPlace" checked /><span>Put on the timeline from 00:00 (new tracks)</span></label>
+          <label class="toggle"><input type="checkbox" id="mixMute" /><span>Mute the tracks that went into the mix</span></label>
+          <button id="mixBtn" class="btn primary block">🎚 Create files</button>
+        </div>
+        <div id="mixResults"></div>
+        <p class="hint center">Only WAV clips can be mixed. New audio is made as WAV by default (⚙ Settings → Audio format).</p>
+      </section>
+
       <!-- ================= LIBRARY ================= -->
       <section id="tab-library" class="pane">
         <div class="segmented" id="libKind">
-          <button class="seg active" data-value="sound">🔊 Sounds</button>
-          <button class="seg" data-value="music">🎵 Music</button>
+          <button class="seg active" data-value="sound">🔊 SFX library</button>
+          <button class="seg" data-value="music">🎵 Music library</button>
+        </div>
+        <div class="filter-row">
+          <div class="filter">
+            <label for="libMood">Mood</label>
+            <select id="libMood"></select>
+          </div>
+          <div class="filter" id="libTypeWrap">
+            <label for="libType">Type</label>
+            <select id="libType"></select>
+          </div>
         </div>
         <div class="toolbar">
-          <input id="libSearch" type="text" placeholder="Search the library" class="grow" />
+          <input id="libSearch" type="text" placeholder="Search names and prompts" class="grow" />
           <button id="libRefreshBtn" class="btn small">Refresh</button>
         </div>
-        <div class="chips wrap" id="libFilter"></div>
         <div id="libList"></div>
       </section>
 
@@ -313,10 +373,11 @@
           <div class="section-title">Output</div>
           <div class="field"><label for="outputFormat">Audio format</label>
             <select id="outputFormat">
-              <option value="mp3_44100_128">MP3 · 44.1 kHz · 128 kbps (any plan)</option>
-              <option value="mp3_44100_192">MP3 · 44.1 kHz · 192 kbps (Creator+)</option>
-              <option value="pcm_44100">WAV · 44.1 kHz (Pro+)</option>
+              <option value="pcm_44100">WAV · 44.1 kHz (recommended; 24 kHz on smaller plans)</option>
               <option value="pcm_48000">WAV · 48 kHz (Pro+)</option>
+              <option value="pcm_24000">WAV · 24 kHz (any plan)</option>
+              <option value="mp3_44100_128">MP3 · 128 kbps (can't be mixed in the Mix tab)</option>
+              <option value="mp3_44100_192">MP3 · 192 kbps (can't be mixed in the Mix tab)</option>
             </select></div>
           <div class="field"><label>Save everything in</label>
             <div class="toolbar"><span id="outputFolder" class="path grow">Plugin data folder</span><button id="chooseFolderBtn" class="btn small">Change</button></div>
@@ -348,16 +409,20 @@
   <script src="js/util.js"></script>
   <script src="js/settings.js"></script>
   <script src="js/wav.js"></script>
+  <script src="js/audio.js"></script>
   <script src="js/elevenlabs.js"></script>
   <script src="js/claude.js"></script>
   <script src="js/premiere.js"></script>
   <script src="js/library.js"></script>
+  <script src="js/dub.js"></script>
+  <script src="js/mix.js"></script>
   <script src="js/ui/core.js"></script>
   <script src="js/ui/voices.js"></script>
   <script src="js/ui/film.js"></script>
   <script src="js/ui/cast.js"></script>
   <script src="js/ui/sound.js"></script>
   <script src="js/ui/music.js"></script>
+  <script src="js/ui/mix.js"></script>
   <script src="js/ui/library.js"></script>
   <script src="js/ui/tools.js"></script>
   <script src="js/ui/settings.js"></script>

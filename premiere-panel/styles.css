@@ -515,3 +515,36 @@ select + .toggle { margin-top: 10px; }
 #log .error { color: var(--error); }
 #log .ok { color: var(--ok); }
 #clearLogBtn { align-self: flex-end; }
+
+/* ---------------- uploads, cast mapping, filters, mix ---------------- */
+.upload-row { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
+.upload-label { font-weight: 700; margin-bottom: 4px; }
+.cast-pick {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.65);
+  border-radius: 8px;
+  padding: 2px 7px 2px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+}
+.cast-pick input { margin: 0 4px 0 0; }
+.cast-inner.excluded { opacity: 0.55; }
+.cast-photo .no-face { color: var(--faint); font-size: 30px; text-align: center; line-height: 150px; }
+.map-box { background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 6px; margin: 4px 0 6px; }
+.map-box .label { font-size: 10px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+.map-box select { margin-bottom: 4px; }
+.map-row { display: flex; align-items: center; }
+.map-row label { font-size: 10.5px; color: var(--muted); flex: 1; }
+.map-row input { width: 64px; font-size: 11px; padding: 3px 5px; text-align: center; }
+.filter-row { display: flex; margin-bottom: 10px; }
+.filter { flex: 1; }
+.filter + .filter { margin-left: 8px; }
+.filter label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.mix-result { display: flex; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 6px; }
+.mix-result span:first-child { flex: 1; font-weight: 600; }
+.mix-result .btn { margin-left: 4px; }

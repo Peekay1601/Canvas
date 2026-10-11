@@ -30,6 +30,32 @@
     return resp;
   }
 
+  // 44.1/48 kHz WAV needs a Pro plan. If ElevenLabs refuses it, drop to 24 kHz WAV for the rest
+  // of the session so generated audio can still be mixed by the panel.
+  let pcmFallback = null;
+  function effectiveFormat(fmt) {
+    return pcmFallback && /^pcm_(44100|48000)$/.test(fmt) ? pcmFallback : fmt;
+  }
+
+  // Runs `call(format)`; on a plan error for high-rate WAV, retries at 24 kHz. Returns { buffer, format }.
+  async function withFormat(requested, call) {
+    const fmt = effectiveFormat(requested);
+    try {
+      return { buffer: await call(fmt), format: fmt };
+    } catch (e) {
+      const status = parseInt((/ElevenLabs (\d+)/.exec(e.message) || [])[1], 10);
+      if (/^pcm_(44100|48000)$/.test(fmt) && status >= 400 && status < 500 && status !== 401 && status !== 429) {
+        pcmFallback = "pcm_24000";
+        return { buffer: await call(pcmFallback), format: pcmFallback };
+      }
+      throw e;
+    }
+  }
+
+  function rateOf(fmt) {
+    return parseInt(fmt.split("_")[1], 10) || 44100;
+  }
+
   const OWN_CATEGORIES = ["cloned", "generated", "professional"];
 
   // Every voice in the user's ElevenLabs account, their own voices first.
@@ -70,13 +96,15 @@
     return resp.arrayBuffer();
   }
 
-  async function textToSpeech(voiceId, text, outputFormat) {
-    const resp = await request("/v1/text-to-speech/" + encodeURIComponent(voiceId), {
-      method: "POST",
-      query: { output_format: outputFormat || S().get("outputFormat") },
-      body: { text, model_id: S().get("ttsModel") },
+  function textToSpeech(voiceId, text, outputFormat) {
+    return withFormat(outputFormat || S().get("outputFormat"), async (fmt) => {
+      const resp = await request("/v1/text-to-speech/" + encodeURIComponent(voiceId), {
+        method: "POST",
+        query: { output_format: fmt },
+        body: { text, model_id: S().get("ttsModel") },
+      });
+      return resp.arrayBuffer();
     });
-    return resp.arrayBuffer();
   }
 
   async function soundEffect(text, durationSeconds, loop) {
@@ -85,24 +113,20 @@
     if (loop) body.loop = true;
     // ElevenLabs accepts 0.5–30 s; leave it out to let the model pick.
     if (durationSeconds > 0) body.duration_seconds = Math.min(30, Math.max(0.5, durationSeconds));
-    const resp = await request("/v1/sound-generation", {
-      method: "POST",
-      query: { output_format: S().get("outputFormat") },
-      body,
+    return withFormat(S().get("outputFormat"), async (fmt) => {
+      const resp = await request("/v1/sound-generation", { method: "POST", query: { output_format: fmt }, body });
+      return resp.arrayBuffer();
     });
-    return resp.arrayBuffer();
   }
 
   async function music(prompt, durationSeconds, instrumental) {
     const body = { prompt, force_instrumental: instrumental !== false };
     // Music length is 3 s – 10 min; leave it out to let the model pick.
     if (durationSeconds > 0) body.music_length_ms = Math.round(Math.min(600, Math.max(3, durationSeconds)) * 1000);
-    const resp = await request("/v1/music", {
-      method: "POST",
-      query: { output_format: S().get("outputFormat") },
-      body,
+    return withFormat(S().get("outputFormat"), async (fmt) => {
+      const resp = await request("/v1/music", { method: "POST", query: { output_format: fmt }, body });
+      return resp.arrayBuffer();
     });
-    return resp.arrayBuffer();
   }
 
   // pcm_* formats are raw 16-bit mono little-endian samples; wrap them in a WAV header.
@@ -130,12 +154,10 @@
     throw new Error("Unknown item type: " + item.type);
   }
 
-  // Generate one plan item; returns bytes ready to write to a .mp3 / .wav file.
+  // Generate one plan item; returns bytes ready to write to a .mp3 / .wav file (see fileExtension).
   async function generate(item) {
-    const bytes = await generateRaw(item);
-    const fmt = S().get("outputFormat");
-    if (fmt.startsWith("pcm_")) return pcmToWav(bytes, parseInt(fmt.split("_")[1], 10) || 44100);
-    return bytes;
+    const out = await generateRaw(item);
+    return out.format.startsWith("pcm_") ? pcmToWav(out.buffer, rateOf(out.format)) : out.buffer;
   }
 
   // ----- voices: clone and design --------------------------------------
@@ -237,40 +259,46 @@
   }
 
   // A short MP3 line in a voice, for auditioning voices that have no stored sample.
-  function speakSample(voiceId, text) {
-    return textToSpeech(voiceId, text, "mp3_44100_128");
+  async function speakSample(voiceId, text) {
+    return (await textToSpeech(voiceId, text, "mp3_44100_128")).buffer;
   }
 
   // ----- voice changer (speech to speech) --------------------------------
 
   // Re-performs a recording in another voice, keeping timing and delivery.
-  // Returns bytes ready to write to a .mp3 / .wav file.
-  async function changeVoice(voiceId, fileName, bytes, removeNoise) {
+  // Default: bytes ready to write to a .mp3 / .wav file. opts.raw: { samples: Float32Array, sampleRate } (always WAV quality).
+  async function changeVoice(voiceId, fileName, bytes, removeNoise, opts) {
+    opts = opts || {};
     const key = await S().getKey("elevenlabs");
     if (!key) throw new Error("Add your ElevenLabs API key in Settings.");
     if (!voiceId) throw new Error("Pick the voice to change into.");
-    const fmt = S().get("outputFormat");
     const ext = (fileName.split(".").pop() || "").toLowerCase();
-    const { body, contentType } = multipart(
-      { model_id: "eleven_multilingual_sts_v2", remove_background_noise: removeNoise ? "true" : "false" },
-      [{ field: "audio", name: fileName, type: AUDIO_TYPES[ext] || "application/octet-stream", data: bytes }]
-    );
-    const resp = await fetch(
-      BASE + "/v1/speech-to-speech/" + encodeURIComponent(voiceId) + "?output_format=" + encodeURIComponent(fmt),
-      { method: "POST", headers: { "xi-api-key": key, "Content-Type": contentType }, body }
-    );
-    if (!resp.ok) {
-      const data = await resp.json().catch(() => ({}));
-      const d = data.detail;
-      throw new Error("ElevenLabs " + resp.status + ": " + ((d && (d.message || d)) || resp.statusText));
+    const requested = opts.raw ? "pcm_44100" : S().get("outputFormat");
+    const out = await withFormat(requested, async (fmt) => {
+      const { body, contentType } = multipart(
+        { model_id: "eleven_multilingual_sts_v2", remove_background_noise: removeNoise ? "true" : "false" },
+        [{ field: "audio", name: fileName, type: AUDIO_TYPES[ext] || "application/octet-stream", data: bytes }]
+      );
+      const resp = await fetch(
+        BASE + "/v1/speech-to-speech/" + encodeURIComponent(voiceId) + "?output_format=" + encodeURIComponent(fmt),
+        { method: "POST", headers: { "xi-api-key": key, "Content-Type": contentType }, body }
+      );
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        const d = data.detail;
+        throw new Error("ElevenLabs " + resp.status + ": " + ((d && (d.message || d)) || resp.statusText));
+      }
+      return resp.arrayBuffer();
+    });
+    if (opts.raw) {
+      if (!out.format.startsWith("pcm_")) throw new Error("Expected WAV audio from the voice changer.");
+      return { samples: window.AIA.audio.pcm16ToFloat(out.buffer), sampleRate: rateOf(out.format) };
     }
-    const out = await resp.arrayBuffer();
-    if (fmt.startsWith("pcm_")) return pcmToWav(out, parseInt(fmt.split("_")[1], 10) || 44100);
-    return out;
+    return out.format.startsWith("pcm_") ? pcmToWav(out.buffer, rateOf(out.format)) : out.buffer;
   }
 
   function fileExtension() {
-    return S().get("outputFormat").startsWith("pcm") ? "wav" : "mp3";
+    return effectiveFormat(S().get("outputFormat")).startsWith("pcm") ? "wav" : "mp3";
   }
 
   window.AIA.eleven = {

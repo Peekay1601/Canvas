@@ -4,11 +4,12 @@ A dockable Premiere Pro panel for your own machine. It looks at your edit, maps 
 
 | Tab | What it does |
 |---|---|
-| 🎬 **Film** | Start here. ① Upload the script (optional backup reference: TXT, Fountain, FDX, SRT or PDF). ② Grab stills from the timeline into their own folder. ③ **Analyse film**: Claude finds the characters and builds the sound cue sheet from the stills and script. |
-| 🎭 **Cast** | One square card per character with their still, age and look. Pick a voice from the dropdown, or press **3 voice options**: ElevenLabs designs three voices from Claude's age/look-based voice prompt, you ▶ play and ✓ approve one. Voices are named after the dub file or script. **Change voice** converts that character's dub clips. Approved voices are saved as character voices and picked up automatically for the same character in any other timeline. |
-| 🔊 **Sound** | The cue sheet, split into Ambience, Foley, Human, Hard FX and Designed FX, each marked *seen* (in a still), *script* or *guess*. Edit prompts, tick cues, **Generate**. Each cue lands at its time on its own track group without overwriting anything. Long ambience beds are generated as seamless loops and laid end to end. The master sound design brief Claude follows is editable here. |
-| 🎵 **Music** | Pick a mood, describe the moment, Claude writes the score prompt (using the film analysis), ElevenLabs composes it. |
-| 📚 **Library** | Every generated sound (by category) and music cue (by mood). ▶ play in the Source Monitor, ＋ add at the playhead, **Prompt ▾** shows the exact prompt used. |
+| 🎬 **Film** | Start here. ① Add your **dubbing files** (one full-length file per character), the **dubbing cue sheet** (CSV, TXT or PDF) and the script (backup reference). ② Grab stills from the timeline into their own folder. ③ **Analyse film**: Claude names the characters from the dub file names and cue sheet, matches them to faces in the stills, and builds the sound cue sheet. Characters can be found from dubbing alone, without stills. |
+| 🎭 **Cast** | One square card per character. Tick **Include** for the ones to process. **Dub audio**: map an uploaded dub file (with its start time), a whole Premiere track (A1, A2…), or upload a full file. Pick a voice, or press **3 voice options** to audition and ✓ approve one (named after the dub file). **Change voice for selected** converts each character's whole layer into **one continuous file**, in sync, on a free track, and can mute the original track. Only the parts with speech are sent to ElevenLabs. Approved voices are reused for the same character in any timeline. |
+| 🔊 **Sound** | The cue sheet, split into Ambience, Foley, Human, Hard FX and Designed FX, each marked *seen*, *script* or *guess*, and tagged with a mood. Edit prompts, tick cues, **Generate**. Cues land at their times on per-type tracks without overwriting anything; long ambience beds are seamless loops laid end to end. The master sound design brief is editable here. |
+| 🎵 **Music** | Pick a mood, describe the moment, Claude writes the score prompt, ElevenLabs composes it. |
+| 🎚 **Mix** | One WAV per layer: **Dubbing**, **Music** and **Sound** (or 5 sound stems), and/or **everything mixed** into one file. Built from the panel's audio that is on the timeline now, so your edits count. Imported from 00:00 on empty tracks; optionally mutes the tracks that went in. |
+| 📚 **Library** | Two separate libraries: **SFX** and **Music**. Each has a **Mood** dropdown (SFX also a **Type** dropdown), items grouped by mood, ▶ play, ＋ add at the playhead, **Prompt ▾** shows the exact prompt used. |
 | 🎙 **Voices** | Character voices (reusable across timelines), your ElevenLabs voices (play, set default, delete), clone your voice, design a voice with Claude. |
 | 🧰 **Tools** | Quick create (Claude plan or direct) and a general voice changer for any clip or file. |
 | ⚙ **Settings** | API keys (OS secure storage), models, audio format, output folder, project bin. |
@@ -26,7 +27,9 @@ A dockable Premiere Pro panel for your own machine. It looks at your edit, maps 
     ├── cue_sheets/           <Sequence>_cue_sheet.csv / .json
     ├── sound/Ambience|Foley|Human|Hard_FX|Designed_FX/
     ├── music/<Mood>/
-    ├── voice_change/<Character>/
+    ├── dialogue/<Character>/      one converted layer per character
+    ├── mix/<Sequence>/            stems and full mix
+    ├── voice_change/              Tools → Change voice
     └── generated/
 ```
 
@@ -60,6 +63,9 @@ In UXP Developer Tool choose ••• → **Package** for this plugin. That giv
 | `js/premiere.js` | Sequence info, stills (`Exporter.exportSequenceFrame`), project folders, import, free-track search, overwrite edits, Source Monitor playback |
 | `js/library.js` | Sound/music library, character voices, per-sequence analysis |
 | `js/wav.js` | Cuts a time range out of a WAV file without re-encoding |
+| `js/audio.js` | WAV decode/encode, speech detection, resampling, mixing, peak protection |
+| `js/dub.js` | Single-layer voice change per character (speech regions only, re-assembled in sync) |
+| `js/mix.js` | Stems and full mix from the panel's audio on the timeline |
 | `js/ui/*.js` | One file per tab, plus `core.js` (shared helpers) and `app.js` (startup) |
 
 Notes:
@@ -67,4 +73,7 @@ Notes:
 - **Analyse film** sends Claude the stills (640 px JPEGs), the script and the names of the audio clips on the timeline. Claude can't hear audio and only sees stills, so movement between stills is inferred; cues say whether they were *seen*, from the *script*, or a *guess*. Quick create sends only your prompt, voice names and, if ticked, the sequence name and playhead.
 - **Create** places items with an overwrite edit on A*n*, A*n+1*, …, so they don't overwrite each other. **Change voice** looks for a track that is empty for that stretch of time and never overwrites existing audio. The tracks have to exist in the sequence; add tracks if the status bar says so.
 - Default models: `claude-opus-5-5` for planning and `eleven_v4` for voice. Change either in Settings.
+- Audio is generated as WAV (44.1 kHz, or 24 kHz automatically on plans without 44.1 kHz WAV) so the Mix tab can combine it. MP3 clips can't be mixed.
+- Premiere doesn't let panels add tracks: the Mix tab tells you how many empty audio tracks to add first.
+- Single-layer conversion and mixing happen in the panel's memory; very long sequences (over ~30 minutes) are best done scene by scene.
 - Every generation spends ElevenLabs credits; every plan spends Claude API credits.

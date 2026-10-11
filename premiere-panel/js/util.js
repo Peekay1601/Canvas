@@ -96,8 +96,11 @@
     return rows.map((r) => r.map(csvCell).join(",")).join("\n") + "\n";
   }
 
+  const MOODS = ["Tense", "Hopeful", "Sad", "Epic", "Romantic", "Mysterious", "Joyful", "Calm", "Divine", "Action", "Dark", "Other"];
+
   window.AIA = window.AIA || {};
   window.AIA.util = {
+    MOODS,
     bytesToBase64, slug, fmtTime, stamp, uid,
     ensureFolder, ensurePath, readJson, writeJson, writeText, writeBytes, toCsv,
   };

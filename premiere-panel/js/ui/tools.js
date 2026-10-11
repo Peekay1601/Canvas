@@ -121,7 +121,7 @@
           await A.library.add({
             kind: item.type === "music" ? "music" : "sound",
             category: item.type === "music" ? undefined : "hard_fx",
-            mood: item.type === "music" ? "Other" : undefined,
+            mood: "Other",
             name: item.name,
             prompt: item.text,
             path: saved.path,

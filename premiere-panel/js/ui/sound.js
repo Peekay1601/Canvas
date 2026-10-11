@@ -91,7 +91,7 @@
       play.addEventListener("click", () => busy(play, () => A.premiere.playFile(c.file)));
       actions.appendChild(play);
     }
-    detail.appendChild(el("div", { class: "meta", text: c.id + " · " + catLabel(c.category) + " · " + c.duration_seconds + " s · " + c.intensity + (c.loop ? " · loop" : "") + (c.stills.length ? " · stills " + c.stills.join(", ") : "") }));
+    detail.appendChild(el("div", { class: "meta", text: c.id + " · " + catLabel(c.category) + " · " + (c.mood || "Other") + " · " + c.duration_seconds + " s · " + c.intensity + (c.loop ? " · loop" : "") + (c.stills.length ? " · stills " + c.stills.join(", ") : "") }));
     detail.appendChild(prompt);
     if (c.notes) detail.appendChild(el("div", { class: "meta", text: c.notes }));
     detail.appendChild(actions);
@@ -143,6 +143,7 @@
     await A.library.add({
       kind: "sound",
       category: c.category,
+      mood: c.mood || "Other",
       name: c.id + " · " + c.title,
       prompt: c.prompt,
       path: saved.path,

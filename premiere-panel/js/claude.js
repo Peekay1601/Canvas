@@ -156,6 +156,21 @@
           film.clips.map((c) => "- " + c.name + " | A" + (c.trackIndex + 1) + " | " + U.fmtTime(c.startSec) + "–" + U.fmtTime(c.endSec)).join("\n"),
       });
     }
+    if (film.dubFiles && film.dubFiles.length) {
+      blocks.push({
+        type: "text",
+        text: "Dubbing files the editor uploaded (one full-length file per character; the file name usually is the character's name):\n" +
+          film.dubFiles.map((d) => "- " + d.name).join("\n"),
+      });
+    }
+    if (film.dubSheet) {
+      blocks.push({ type: "text", text: "Dubbing cue sheet / dialogue list (character names and lines): " + film.dubSheet.name });
+      if (film.dubSheet.kind === "pdf") {
+        blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: film.dubSheet.b64 } });
+      } else {
+        blocks.push({ type: "text", text: "<dub_cue_sheet>\n" + film.dubSheet.text + "\n</dub_cue_sheet>" });
+      }
+    }
     if (film.script) {
       blocks.push({ type: "text", text: "Script (backup reference only; the picture comes first): " + film.script.name });
       if (film.script.kind === "pdf") {
@@ -188,7 +203,7 @@
           type: "object",
           properties: {
             id: { type: "string", description: "Short lowercase id, e.g. 'ravi'." },
-            name: { type: "string", description: "Character name: from the dub file names or script if available, otherwise a short visual description like 'Old Priest'." },
+            name: { type: "string", description: "Character name: from the dubbing file names and dubbing cue sheet first, then the script, otherwise a short visual description like 'Old Priest'." },
             name_source: { type: "string", enum: ["dub_file", "script", "visual"] },
             age_range: { type: "string", description: "e.g. 'late 60s'." },
             gender: { type: "string" },
@@ -196,12 +211,13 @@
             personality: { type: "string", description: "Bearing and temperament as seen or as the script states." },
             voice_prompt: { type: "string", description: "ElevenLabs Voice Design description, 150–900 characters: age, gender, accent and region fitting the film's cultural setting, pitch, timbre, pace, texture, emotional colour, and 'studio-quality recording'. Grounded in the character's age and look." },
             preview_line: { type: "string", description: "100–900 characters this character would say, in the film's language and register. Use the character's real lines from the script when available." },
-            best_still: { type: "integer", description: "Still number with the clearest view of this character's face." },
+            best_still: { type: "integer", description: "Still number with the clearest view of this character's face; 0 if they can't be identified in any still." },
+            dub_file: { type: "string", description: "Exact name of the uploaded dubbing file for this character, or empty." },
             stills: { type: "array", items: { type: "integer" }, description: "Still numbers where the character appears." },
             dub_clips: { type: "array", items: { type: "string" }, description: "Exact names of timeline audio clips that are this character's dub/dialogue. Empty if none match." },
             notes: { type: "string", description: "Uncertainties worth flagging. Empty if none." },
           },
-          required: ["id", "name", "name_source", "age_range", "gender", "look", "personality", "voice_prompt", "preview_line", "best_still", "stills", "dub_clips", "notes"],
+          required: ["id", "name", "name_source", "age_range", "gender", "look", "personality", "voice_prompt", "preview_line", "best_still", "dub_file", "stills", "dub_clips", "notes"],
           additionalProperties: false,
         },
       },
@@ -216,7 +232,9 @@
       text: [
         "TASK: map the characters.",
         "List every distinct speaking or prominent on-screen character (skip background extras).",
-        "Name them from the dub file names first, then the script, otherwise describe them visually.",
+        "Every uploaded dubbing file is one character: list each of them, even when you can't match them to a face (best_still 0).",
+        "Name characters from the dubbing file names and the dubbing cue sheet first, then the script, otherwise describe them visually.",
+        "Match faces in the stills to those names using the script and cue sheet (who speaks when, ages, descriptions).",
         "Match timeline audio clips to characters by their names; never guess a clip that doesn't clearly belong.",
         "Write a voice_prompt from the character's age, look, bearing and the film's cultural and period setting. Never describe or imitate a real, named person.",
       ].join("\n"),
@@ -260,9 +278,10 @@
             stills: { type: "array", items: { type: "integer" } },
             loop: { type: "boolean", description: "true for continuous beds that should loop seamlessly (ambience, room tone)." },
             intensity: { type: "string", enum: ["soft", "medium", "strong"] },
+            mood: { type: "string", enum: ["Tense", "Hopeful", "Sad", "Epic", "Romantic", "Mysterious", "Joyful", "Calm", "Divine", "Action", "Dark", "Other"], description: "Emotional mood of the moment this cue serves." },
             notes: { type: "string" },
           },
-          required: ["id", "category", "title", "start_seconds", "duration_seconds", "prompt", "evidence", "stills", "loop", "intensity", "notes"],
+          required: ["id", "category", "title", "start_seconds", "duration_seconds", "prompt", "evidence", "stills", "loop", "intensity", "mood", "notes"],
           additionalProperties: false,
         },
       },

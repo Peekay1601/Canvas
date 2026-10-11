@@ -7,7 +7,7 @@
   const DEFAULTS = {
     claudeModel: "claude-opus-5-5",
     ttsModel: "eleven_v4",
-    outputFormat: "mp3_44100_128",
+    outputFormat: "pcm_44100", // WAV, so the Mix tab can combine everything (falls back to 24 kHz on smaller plans)
     binName: "AI Audio",
     stillsCount: "auto",
     // First audio track (1-based) each sound category is placed from; the panel moves down to the next free track.
@@ -17,6 +17,7 @@
     track_hard_fx: "8",
     track_designed_fx: "9",
     track_music: "10",
+    track_dialogue: "1",
   };
   const FOLDER_TOKEN_KEY = "aia.outputFolderToken";
 

@@ -1,20 +1,22 @@
-// Library tab: every generated sound (by category) and music cue (by mood), with the prompt used.
+// Library tab: two separate libraries, SFX and Music, each filtered by a mood dropdown
+// (and a type dropdown for SFX). Every item shows the prompt it was made from.
 (function () {
   const A = window.AIA;
   const { $, el, log, busy, on } = A.ui;
 
-  const SOUND_CATS = [
+  const TYPES = [
     { value: "ambience", label: "Ambience" },
     { value: "foley", label: "Foley" },
     { value: "human", label: "Human" },
     { value: "hard_fx", label: "Hard FX" },
     { value: "designed_fx", label: "Designed FX" },
   ];
+  const typeLabel = (v) => (TYPES.find((t) => t.value === v) || { label: v || "Other" }).label;
   let items = [];
-  let filter = "all";
 
   const kind = A.ui.segmented("libKind", () => {
-    filter = "all";
+    $("libMood").value = "all";
+    $("libType").value = "all";
     render();
   });
 
@@ -27,13 +29,15 @@
     render();
   }
 
-  function groupKey(it) {
-    return kind() === "music" ? it.mood || "Other" : it.category || "other";
+  function moodOf(it) {
+    return it.mood || "Other";
   }
 
-  function groupLabel(key) {
-    if (kind() === "music") return key;
-    return (SOUND_CATS.find((c) => c.value === key) || { label: key }).label;
+  function fillSelect(select, options, keep) {
+    const prev = keep ? select.value : "all";
+    select.innerHTML = "";
+    options.forEach((o) => select.appendChild(el("option", { value: o.value, text: o.label })));
+    select.value = options.some((o) => o.value === prev) ? prev : "all";
   }
 
   function itemCard(it) {
@@ -66,42 +70,60 @@
     });
 
     const swatch = it.kind === "music" ? "music" : it.category;
+    const sub = [it.kind === "music" ? null : typeLabel(it.category), it.seconds ? Math.round(it.seconds) + " s" : "", it.project, it.sequence].filter(Boolean).join(" · ");
     return el("div", { class: "lib-item" }, [
       el("div", { class: "lib-top" }, [el("span", { class: "swatch c-" + swatch }), el("span", { class: "lib-name", text: it.name }), play, add, toggle, del]),
-      el("div", { class: "lib-sub", text: [it.seconds ? Math.round(it.seconds) + " s" : "", it.project, it.sequence, new Date(it.created).toLocaleDateString()].filter(Boolean).join(" · ") }),
+      el("div", { class: "lib-sub", text: sub }),
       promptBox,
     ]);
   }
 
   function render() {
     const k = kind();
-    const q = $("libSearch").value.trim().toLowerCase();
     const ofKind = items.filter((it) => it.kind === k);
-    const keys = [];
-    ofKind.forEach((it) => { const g = groupKey(it); if (keys.indexOf(g) === -1) keys.push(g); });
-    if (k === "sound") keys.sort((a, b) => SOUND_CATS.findIndex((c) => c.value === a) - SOUND_CATS.findIndex((c) => c.value === b));
-    else keys.sort();
+    $("libTypeWrap").classList.toggle("hidden", k !== "sound");
 
-    A.ui.chips($("libFilter"), [{ value: "all", label: "All", count: ofKind.length }].concat(
-      keys.map((g) => ({ value: g, label: groupLabel(g), swatch: k === "music" ? "music" : g, count: ofKind.filter((it) => groupKey(it) === g).length }))
-    ), filter, (v) => { filter = v; render(); });
+    // Mood dropdown: every mood that has something, with counts.
+    const moods = A.util.MOODS.filter((m) => ofKind.some((it) => moodOf(it) === m));
+    fillSelect($("libMood"), [{ value: "all", label: "All moods (" + ofKind.length + ")" }].concat(
+      moods.map((m) => ({ value: m, label: m + " (" + ofKind.filter((it) => moodOf(it) === m).length + ")" }))
+    ), true);
+    if (k === "sound") {
+      fillSelect($("libType"), [{ value: "all", label: "All types" }].concat(
+        TYPES.filter((t) => ofKind.some((it) => it.category === t.value)).map((t) => ({ value: t.value, label: t.label + " (" + ofKind.filter((it) => it.category === t.value).length + ")" }))
+      ), true);
+    }
+
+    const mood = $("libMood").value;
+    const type = k === "sound" ? $("libType").value : "all";
+    const q = $("libSearch").value.trim().toLowerCase();
+    const shown = ofKind.filter((it) =>
+      (mood === "all" || moodOf(it) === mood) &&
+      (type === "all" || it.category === type) &&
+      (!q || (it.name + " " + (it.prompt || "")).toLowerCase().indexOf(q) !== -1)
+    );
 
     const list = $("libList");
     list.innerHTML = "";
-    const shown = ofKind.filter((it) => (filter === "all" || groupKey(it) === filter) && (!q || (it.name + " " + (it.prompt || "") + " " + (it.mood || "")).toLowerCase().indexOf(q) !== -1));
     if (!shown.length) {
-      list.appendChild(el("div", { class: "empty", text: ofKind.length ? "Nothing matches." : k === "music" ? "No music yet. Make some in the Music tab." : "No sounds yet. Generate cues in the Sound tab." }));
+      list.appendChild(el("div", {
+        class: "empty",
+        text: ofKind.length ? "Nothing matches these filters." : k === "music" ? "Your music library is empty. Compose something in the Music tab." : "Your SFX library is empty. Generate cues in the Sound tab.",
+      }));
       return;
     }
-    keys.forEach((g) => {
-      const inGroup = shown.filter((it) => groupKey(it) === g);
+    // Grouped by mood, in the standard mood order.
+    A.util.MOODS.forEach((m) => {
+      const inGroup = shown.filter((it) => moodOf(it) === m);
       if (!inGroup.length) return;
       list.appendChild(el("div", { class: "lib-group" }, [
-        el("div", { class: "lib-group-head" }, [el("span", { class: "swatch c-" + (k === "music" ? "music" : g) }), el("span", { text: groupLabel(g) }), el("span", { class: "count", text: String(inGroup.length) })]),
+        el("div", { class: "lib-group-head" }, [el("span", { text: m }), el("span", { class: "count", text: String(inGroup.length) })]),
       ].concat(inGroup.map(itemCard))));
     });
   }
 
+  $("libMood").addEventListener("change", render);
+  $("libType").addEventListener("change", render);
   $("libSearch").addEventListener("input", render);
   $("libRefreshBtn").addEventListener("click", () => busy($("libRefreshBtn"), load));
   on("library", load);

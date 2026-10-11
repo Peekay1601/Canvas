@@ -5,7 +5,8 @@
   const uxp = A.ui.uxp;
   const formats = uxp.storage.formats;
 
-  const TEXT_TYPES = ["txt", "md", "fountain", "fdx", "srt", "rtf"];
+  const TEXT_TYPES = ["txt", "md", "fountain", "fdx", "srt", "rtf", "csv", "tsv"];
+  const AUDIO_TYPES = ["wav", "mp3", "m4a", "aac", "flac", "aif", "aiff", "mp4", "mov"];
 
   // ----- script ------------------------------------------------------------
   async function scriptKey() {
@@ -15,9 +16,14 @@
 
   function showScript(script) {
     $("scriptInfo").classList.toggle("hidden", !script);
-    $("scriptCheck").classList.toggle("hidden", !script);
     $("scriptBtn").textContent = script ? "Replace script…" : "Upload script…";
     if (script) $("scriptName").textContent = "📄 " + script.name;
+    updateStep1Check();
+  }
+
+  function updateStep1Check() {
+    const any = state.script || state.dubSheet || (state.dubFiles && state.dubFiles.length);
+    $("scriptCheck").classList.toggle("hidden", !any);
   }
 
   async function readScriptFile(file) {
@@ -30,7 +36,7 @@
       const text = await file.read({ format: formats.utf8 });
       return { kind: "text", name: file.name, text };
     }
-    throw new Error("Use a TXT, Fountain, FDX, SRT or PDF script. For Word files, save as PDF first.");
+    throw new Error("Use a TXT, CSV, Fountain, FDX, SRT or PDF file. For Word or Excel files, save as PDF or CSV first.");
   }
 
   $("scriptBtn").addEventListener("click", () =>
@@ -84,6 +90,101 @@
     try { return decodeURIComponent(escape(s)); } catch (e) { return s; }
   };
 
+  // ----- dubbing files + dubbing cue sheet -----------------------------------------
+  async function dubKey() {
+    const project = await A.premiere.getProject();
+    return "aia.dub." + A.util.slug(project.name, 60);
+  }
+
+  async function saveDub() {
+    localStorage.setItem(await dubKey(), JSON.stringify({
+      files: state.dubFiles || [],
+      sheet: state.dubSheet ? { name: state.dubSheet.name, path: state.dubSheet.path, kind: state.dubSheet.kind } : null,
+    }));
+    updateStep1Check();
+  }
+
+  function renderDub() {
+    const box = $("dubFileList");
+    box.innerHTML = "";
+    (state.dubFiles || []).forEach((f) => {
+      const rm = el("button", { class: "btn ghost small", text: "Remove" });
+      rm.addEventListener("click", async () => {
+        state.dubFiles = state.dubFiles.filter((x) => x.path !== f.path);
+        await saveDub();
+        renderDub();
+        emit("dub");
+      });
+      box.appendChild(el("div", { class: "file-chip" }, [el("span", { class: "grow", text: "🎧 " + f.name }), rm]));
+    });
+    $("dubFilesBtn").textContent = state.dubFiles && state.dubFiles.length ? "Add more dubbing files…" : "Add dubbing files…";
+    $("dubSheetInfo").classList.toggle("hidden", !state.dubSheet);
+    $("dubSheetBtn").textContent = state.dubSheet ? "Replace cue sheet…" : "Upload cue sheet…";
+    if (state.dubSheet) $("dubSheetName").textContent = "🗒 " + state.dubSheet.name;
+    updateStep1Check();
+  }
+
+  // Adds dubbing files (kept where they are on disk; only their paths are remembered).
+  async function addDubFiles(files) {
+    state.dubFiles = state.dubFiles || [];
+    files.forEach((f) => {
+      if (!state.dubFiles.some((x) => x.path === f.nativePath)) state.dubFiles.push({ name: f.name, path: f.nativePath });
+    });
+    await saveDub();
+    renderDub();
+    emit("dub");
+  }
+
+  $("dubFilesBtn").addEventListener("click", () =>
+    busy($("dubFilesBtn"), async () => {
+      const picked = await uxp.storage.localFileSystem.getFileForOpening({ allowMultiple: true, types: AUDIO_TYPES });
+      const files = picked ? (Array.isArray(picked) ? picked : [picked]) : [];
+      if (!files.length) return;
+      await addDubFiles(files);
+      log(files.length + " dubbing file(s) added.", "ok");
+    })
+  );
+
+  $("dubSheetBtn").addEventListener("click", () =>
+    busy($("dubSheetBtn"), async () => {
+      const file = await uxp.storage.localFileSystem.getFileForOpening({ types: TEXT_TYPES.concat(["pdf"]) });
+      if (!file) return;
+      const sheet = await readScriptFile(file);
+      delete sheet.bytes;
+      sheet.path = file.nativePath;
+      state.dubSheet = sheet;
+      await saveDub();
+      renderDub();
+      log("Dubbing cue sheet added: " + sheet.name, "ok");
+    })
+  );
+
+  $("dubSheetRemoveBtn").addEventListener("click", async () => {
+    state.dubSheet = null;
+    await saveDub();
+    renderDub();
+  });
+
+  async function restoreDub() {
+    state.dubFiles = [];
+    state.dubSheet = null;
+    try {
+      const saved = JSON.parse(localStorage.getItem(await dubKey()) || "null");
+      if (saved) {
+        state.dubFiles = saved.files || [];
+        if (saved.sheet && saved.sheet.path) {
+          const bytes = await A.premiere.readFileBytes(saved.sheet.path);
+          state.dubSheet = saved.sheet.kind === "pdf"
+            ? { kind: "pdf", name: saved.sheet.name, path: saved.sheet.path, b64: A.util.bytesToBase64(bytes) }
+            : { kind: "text", name: saved.sheet.name, path: saved.sheet.path, text: new TextDecoderLite().decode(bytes) };
+        }
+      }
+    } catch (e) {
+      // keep whatever loaded
+    }
+    renderDub();
+  }
+
   // ----- stills --------------------------------------------------------------
   async function renderStills() {
     const grid = $("stillsGrid");
@@ -125,12 +226,19 @@
 
   // ----- analysis ----------------------------------------------------------------
   // Matches characters to voices already approved in the cast library (same name, any timeline).
-  async function attachCastVoices(characters) {
+  async function attachCastVoices(characters, clips) {
     for (const c of characters) {
       const saved = await A.library.castFind(c.name);
       c.voice_id = saved ? saved.voice_id : "";
       c.approved = !!saved;
       c.fromLibrary = !!saved;
+      // Map the dub audio: the uploaded full file first, else the track holding their dub clips.
+      const file = (state.dubFiles || []).find((f) => f.name === c.dub_file);
+      const clip = clips.find((x) => (c.dub_clips || []).indexOf(x.name) !== -1);
+      if (file) c.source = { type: "file", path: file.path, name: file.name, offset: 0 };
+      else if (clip) c.source = { type: "track", index: clip.trackIndex };
+      else c.source = null;
+      c.include = !!c.source;
     }
   }
 
@@ -146,11 +254,18 @@
 
   $("analyseBtn").addEventListener("click", () =>
     busy($("analyseBtn"), async () => {
-      const film = state.film;
-      if (!film || !film.stills || !film.stills.length) throw new Error("Grab stills from the timeline first (step 2).");
       const doCast = $("doCast").checked;
       const doSound = $("doSound").checked;
       if (!doCast && !doSound) throw new Error("Tick at least one thing to analyse.");
+      const hasStills = state.film && state.film.stills && state.film.stills.length;
+      const hasDub = (state.dubFiles && state.dubFiles.length) || state.dubSheet;
+      if (doSound && !hasStills) throw new Error("The sound cue sheet needs stills: grab them in step 2 first.");
+      if (!hasStills && !hasDub) throw new Error("Add dubbing files or a cue sheet (step 1), or grab stills (step 2).");
+      if (!state.film) {
+        const seq = await A.premiere.getSequence();
+        state.film = { sequence: seq.name, start: 0, duration: Math.round((await seq.getEndTime()).seconds * 100) / 100, stills: [] };
+      }
+      const film = state.film;
 
       log("Preparing " + film.stills.length + " stills for Claude…");
       const project = await A.premiere.getProject();
@@ -169,12 +284,14 @@
         stills,
         clips,
         script: state.script,
+        dubFiles: state.dubFiles,
+        dubSheet: state.dubSheet,
       };
 
       if (doCast) {
         log("Claude is finding the characters…");
         const cast = await A.claude.analyzeCast(media);
-        await attachCastVoices(cast.characters);
+        await attachCastVoices(cast.characters, clips);
         film.cast = cast.characters;
         film.clips = clips;
         await A.library.saveAnalysis(film.sequence, film);
@@ -214,6 +331,7 @@
     const seq = await project.getActiveSequence();
     $("seqName").textContent = seq ? project.name.replace(/\.prproj$/i, "") + " · " + seq.name : "No sequence open";
     await restoreScript();
+    await restoreDub();
     if (!seq) return;
     if (state.film && state.film.sequence === seq.name) return;
     state.film = await A.library.loadAnalysis(seq.name);
@@ -227,7 +345,7 @@
     emit("film");
   }
 
-  A.ui.film = { loadForActiveSequence, saveCueSheet };
+  A.ui.film = { loadForActiveSequence, saveCueSheet, addDubFiles };
   on("tab", (tab) => {
     if (tab === "film") loadForActiveSequence().catch(() => {});
   });
