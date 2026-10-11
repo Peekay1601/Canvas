@@ -57,9 +57,9 @@
   }
 
   // Finds (or creates) the bin that generated audio is imported into.
-  async function getBin(project) {
+  async function getBin(project, name) {
     const root = await project.getRootItem();
-    const binName = S().get("binName");
+    const binName = name || S().get("binName");
     let bin = await findChild(root, binName);
     if (!bin) {
       project.lockedAccess(() => {

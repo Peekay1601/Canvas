@@ -40,13 +40,11 @@
     "- sfx: one sound effect per item, prompt written as a concrete sound description (source, action, space, perspective). 0.5–30 seconds.",
     "- music: instrumental music, prompt covering genre, mood, instruments, tempo and structure. 3–600 seconds.",
     "Set start_offset_seconds so the items line up the way the editor described (0 = at the playhead).",
+    "If the editor says \"my voice\" or names a voice, use the matching voice from the list.",
     "Keep the plan to what was asked for; do not add extra items the editor didn't request.",
   ].join("\n");
 
   async function plan(userPrompt, context, voices) {
-    const key = await S().getKey("claude");
-    if (!key) throw new Error("Add your Claude API key in Settings.");
-
     const voiceList = voices.length
       ? voices.map((v) => "- " + v.voice_id + " | " + v.name + (v.description ? " | " + v.description : "")).join("\n")
       : "(no voices available)";
@@ -54,6 +52,13 @@
     if (context) parts.push("", "Premiere sequence context:", JSON.stringify(context));
     parts.push("", "Request:", userPrompt);
 
+    return structuredCall(SYSTEM, parts.join("\n"), PLAN_SCHEMA);
+  }
+
+  // One Messages API call whose answer is JSON matching `schema`.
+  async function structuredCall(system, userText, schema) {
+    const key = await S().getKey("claude");
+    if (!key) throw new Error("Add your Claude API key in Settings.");
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -67,9 +72,9 @@
       body: JSON.stringify({
         model: S().get("claudeModel"),
         max_tokens: 16000,
-        system: SYSTEM,
-        messages: [{ role: "user", content: parts.join("\n") }],
-        output_config: { effort: "medium", format: { type: "json_schema", schema: PLAN_SCHEMA } },
+        system,
+        messages: [{ role: "user", content: userText }],
+        output_config: { effort: "medium", format: { type: "json_schema", schema } },
         fallbacks: "default",
       }),
     });
@@ -83,15 +88,45 @@
       const why = data.stop_details && data.stop_details.explanation;
       throw new Error("Claude declined this request" + (why ? ": " + why : "."));
     }
-    if (data.stop_reason === "max_tokens") throw new Error("Claude's plan was cut off; try a shorter request.");
+    if (data.stop_reason === "max_tokens") throw new Error("Claude's answer was cut off; try a shorter request.");
 
     const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
-    let result;
     try {
-      result = JSON.parse(text);
+      return JSON.parse(text);
     } catch (e) {
-      throw new Error("Couldn't read Claude's plan.");
+      throw new Error("Couldn't read Claude's answer.");
     }
+  }
+
+  const VOICE_SCHEMA = {
+    type: "object",
+    properties: {
+      name: { type: "string", description: "Short voice name, e.g. 'Warm Narrator'." },
+      voice_description: {
+        type: "string",
+        description: "20–1000 characters for ElevenLabs Voice Design: age, gender, accent, tone, pace, texture, recording quality.",
+      },
+      preview_text: {
+        type: "string",
+        description: "100–1000 characters the voice will read as a preview, in the style it will be used for.",
+      },
+    },
+    required: ["name", "voice_description", "preview_text"],
+    additionalProperties: false,
+  };
+
+  const VOICE_SYSTEM = [
+    "You write prompts for ElevenLabs Voice Design inside an Adobe Premiere Pro panel.",
+    "Turn the editor's brief into a precise voice description: age range, gender, accent, pitch, tone, pace, texture and emotional colour, plus 'studio-quality recording'.",
+    "Keep voice_description between 20 and 1000 characters.",
+    "Write a preview_text of 100–1000 characters in the language and style the voice will be used for, so the editor can judge it in context.",
+    "Never describe or imitate a specific real, named person.",
+  ].join("\n");
+
+  async function designVoice(brief) {
+    const result = await structuredCall(VOICE_SYSTEM, brief, VOICE_SCHEMA);
+    result.voice_description = result.voice_description.slice(0, 1000);
+    if (result.preview_text.length > 1000) result.preview_text = result.preview_text.slice(0, 1000);
     return result;
   }
 
@@ -108,5 +143,5 @@
     if (!resp.ok) throw new Error("Claude key rejected (" + resp.status + ").");
   }
 
-  window.AIA.claude = { plan, ping };
+  window.AIA.claude = { plan, designVoice, ping };
 })();

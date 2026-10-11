@@ -291,6 +291,98 @@
     })
   );
 
+  // ----- voices: clone ---------------------------------------------------
+  let cloneFiles = [];
+
+  $("cloneFilesBtn").addEventListener("click", () =>
+    busy($("cloneFilesBtn"), async () => {
+      const fs = require("uxp").storage.localFileSystem;
+      const picked = await fs.getFileForOpening({
+        allowMultiple: true,
+        types: ["mp3", "wav", "m4a", "aac", "flac", "ogg"],
+      });
+      cloneFiles = picked ? (Array.isArray(picked) ? picked : [picked]) : [];
+      $("cloneFiles").textContent = cloneFiles.length
+        ? cloneFiles.map((f) => f.name).join(", ")
+        : "No files chosen";
+    })
+  );
+
+  $("cloneBtn").addEventListener("click", () =>
+    busy($("cloneBtn"), async () => {
+      const name = $("cloneName").value.trim();
+      if (!name) throw new Error("Give your voice a name.");
+      if (!cloneFiles.length) throw new Error("Choose at least one recording of your voice.");
+      const formats = require("uxp").storage.formats;
+      const files = [];
+      for (const f of cloneFiles) files.push({ name: f.name, data: await f.read({ format: formats.binary }) });
+      log("Uploading " + files.length + " recording(s) to ElevenLabs…");
+      await eleven.cloneVoice(name, files, $("cloneDenoise").checked);
+      log('Voice "' + name + '" created. It is now in every voice list.', "ok");
+      await refreshVoices();
+    })
+  );
+
+  // ----- voices: design with Claude --------------------------------------
+  let designPreviews = [];
+
+  $("designPlanBtn").addEventListener("click", () =>
+    busy($("designPlanBtn"), async () => {
+      const brief = $("designBrief").value.trim();
+      if (!brief) throw new Error("Describe the voice first.");
+      log("Asking Claude to write the voice…");
+      const v = await claude.designVoice(brief);
+      $("designName").value = v.name;
+      $("designDescription").value = v.voice_description;
+      $("designText").value = v.preview_text;
+      $("designPreviews").innerHTML = "";
+      $("designBox").classList.remove("hidden");
+      log("Voice written. Edit it if you like, then make previews.", "ok");
+    })
+  );
+
+  $("designPreviewBtn").addEventListener("click", () =>
+    busy($("designPreviewBtn"), async () => {
+      const description = $("designDescription").value.trim();
+      const text = $("designText").value.trim();
+      if (description.length < 20) throw new Error("The voice description needs at least 20 characters.");
+      if (text.length < 100) throw new Error("The preview line needs at least 100 characters.");
+      log("Making voice previews…");
+      designPreviews = await eleven.designVoice(description, text);
+      if (!designPreviews.length) throw new Error("ElevenLabs returned no previews; try again.");
+
+      const project = await premiere.getProject();
+      const bin = await premiere.getBin(project, "Voice previews");
+      const base = $("designName").value.trim() || "Voice";
+      const box = $("designPreviews");
+      box.innerHTML = "";
+      for (let i = 0; i < designPreviews.length; i++) {
+        const p = designPreviews[i];
+        const label = base + " preview " + (i + 1);
+        const saved = await premiere.saveAudio(label, p.bytes, "mp3");
+        await premiere.importFile(project, bin, saved);
+
+        const row = document.createElement("div");
+        row.className = "preview-row";
+        const span = document.createElement("span");
+        span.textContent = "Preview " + (i + 1) + " — " + saved.fileName;
+        const keep = document.createElement("button");
+        keep.textContent = "Save this voice";
+        keep.addEventListener("click", () =>
+          busy(keep, async () => {
+            const name = $("designName").value.trim() || base;
+            await eleven.saveDesignedVoice(name, description, p.generated_voice_id);
+            log('Voice "' + name + '" saved to your ElevenLabs library.', "ok");
+            await refreshVoices();
+          })
+        );
+        row.append(span, keep);
+        box.appendChild(row);
+      }
+      log(designPreviews.length + ' previews in the "Voice previews" bin. Listen in Premiere, then save one.', "ok");
+    })
+  );
+
   $("clearLogBtn").addEventListener("click", () => ($("log").innerHTML = ""));
 
   // ----- start ---------------------------------------------------------

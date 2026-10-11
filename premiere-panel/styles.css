@@ -177,3 +177,22 @@ footer {
 }
 #log .error { color: var(--error); }
 #log .ok { color: var(--ok); }
+
+h3 {
+  font-size: 13px;
+  margin: 4px 0 4px;
+  color: var(--text);
+}
+h3 + .hint { margin-bottom: 4px; }
+#tab-voices h3:not(:first-child) {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  margin-top: 18px;
+}
+.preview-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.preview-row span { flex: 1; }

@@ -106,9 +106,107 @@
     return bytes;
   }
 
+  // ----- voices: clone and design --------------------------------------
+
+  // Builds a multipart/form-data body by hand (UXP's FormData can't carry binary files reliably).
+  function multipart(fields, files) {
+    const boundary = "----aia" + Date.now().toString(16) + Math.random().toString(16).slice(2);
+    const enc = (s) => {
+      const bytes = unescape(encodeURIComponent(s)); // UTF-8
+      const out = new Uint8Array(bytes.length);
+      for (let i = 0; i < bytes.length; i++) out[i] = bytes.charCodeAt(i);
+      return out;
+    };
+    const parts = [];
+    Object.keys(fields).forEach((k) => {
+      parts.push(enc("--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + k + "\"\r\n\r\n" + fields[k] + "\r\n"));
+    });
+    files.forEach((f) => {
+      parts.push(enc("--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + f.field + "\"; filename=\"" +
+        f.name.replace(/"/g, "") + "\"\r\nContent-Type: " + (f.type || "application/octet-stream") + "\r\n\r\n"));
+      parts.push(new Uint8Array(f.data));
+      parts.push(enc("\r\n"));
+    });
+    parts.push(enc("--" + boundary + "--\r\n"));
+    const total = parts.reduce((n, p) => n + p.length, 0);
+    const body = new Uint8Array(total);
+    let off = 0;
+    parts.forEach((p) => { body.set(p, off); off += p.length; });
+    return { body: body.buffer, contentType: "multipart/form-data; boundary=" + boundary };
+  }
+
+  const AUDIO_TYPES = { mp3: "audio/mpeg", wav: "audio/wav", m4a: "audio/mp4", aac: "audio/aac", flac: "audio/flac", ogg: "audio/ogg" };
+
+  // Instant voice clone from the user's own recordings. files: [{ name, data: ArrayBuffer }]
+  async function cloneVoice(name, files, removeNoise) {
+    const key = await S().getKey("elevenlabs");
+    if (!key) throw new Error("Add your ElevenLabs API key in Settings.");
+    const { body, contentType } = multipart(
+      { name, remove_background_noise: removeNoise ? "true" : "false" },
+      files.map((f) => ({
+        field: "files",
+        name: f.name,
+        type: AUDIO_TYPES[(f.name.split(".").pop() || "").toLowerCase()],
+        data: f.data,
+      }))
+    );
+    const resp = await fetch(BASE + "/v1/voices/add", {
+      method: "POST",
+      headers: { "xi-api-key": key, "Content-Type": contentType },
+      body,
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      const d = data.detail;
+      throw new Error("ElevenLabs " + resp.status + ": " + ((d && (d.message || d)) || resp.statusText));
+    }
+    return data.voice_id;
+  }
+
+  // Plain base64 decoder (atob isn't guaranteed in every UXP version).
+  function base64ToBytes(b64) {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const lookup = new Uint8Array(256);
+    for (let i = 0; i < chars.length; i++) lookup[chars.charCodeAt(i)] = i;
+    const clean = b64.replace(/[^A-Za-z0-9+/]/g, "");
+    const out = new Uint8Array(Math.floor((clean.length * 3) / 4));
+    let o = 0;
+    for (let i = 0; i < clean.length; i += 4) {
+      const a = lookup[clean.charCodeAt(i)], b = lookup[clean.charCodeAt(i + 1)];
+      const c = lookup[clean.charCodeAt(i + 2)], d = lookup[clean.charCodeAt(i + 3)];
+      out[o++] = (a << 2) | (b >> 4);
+      if (i + 2 < clean.length) out[o++] = ((b & 15) << 4) | (c >> 2);
+      if (i + 3 < clean.length) out[o++] = ((c & 3) << 6) | d;
+    }
+    return out.buffer.slice(0, o);
+  }
+
+  // Voice design: returns previews [{ generated_voice_id, bytes }] as MP3.
+  async function designVoice(description, text) {
+    const resp = await request("/v1/text-to-voice/design", {
+      method: "POST",
+      query: { output_format: "mp3_44100_128" },
+      body: { voice_description: description, text, model_id: "eleven_multilingual_ttv_v2" },
+    });
+    const data = await resp.json();
+    return (data.previews || []).map((p) => ({
+      generated_voice_id: p.generated_voice_id,
+      bytes: base64ToBytes(p.audio_base_64),
+    }));
+  }
+
+  // Keeps a designed preview as a permanent voice in the user's library.
+  async function saveDesignedVoice(name, description, generatedVoiceId) {
+    const resp = await request("/v1/text-to-voice", {
+      method: "POST",
+      body: { voice_name: name, voice_description: description, generated_voice_id: generatedVoiceId },
+    });
+    return (await resp.json()).voice_id;
+  }
+
   function fileExtension() {
     return S().get("outputFormat").startsWith("pcm") ? "wav" : "mp3";
   }
 
-  window.AIA.eleven = { listVoices, generate, fileExtension };
+  window.AIA.eleven = { listVoices, generate, fileExtension, cloneVoice, designVoice, saveDesignedVoice };
 })();

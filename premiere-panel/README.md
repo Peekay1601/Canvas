@@ -4,6 +4,10 @@ A dockable Premiere Pro panel for your own machine:
 
 - **Settings**: your ElevenLabs and Claude API keys, kept in the OS secure store (macOS Keychain / Windows Credential Manager), plus Claude model, ElevenLabs voice model, audio format, output folder and project bin.
 - **Create**: write what you want in plain words. Claude turns it into a plan of voiceover lines, sound effects and music cues, and picks voices from your ElevenLabs library. You edit or remove items, then **Generate & import**: every file is generated with ElevenLabs, saved to disk, imported into a bin and, if you want, placed on the timeline at the playhead (one audio track per item).
+- **Voices**: make voices of your own.
+  - **Clone my voice**: pick 1–3 minutes of clean recordings of yourself, and ElevenLabs makes an instant clone of your voice.
+  - **Design a new voice with Claude**: describe the voice in plain words. Claude writes the ElevenLabs voice description and a preview line, ElevenLabs makes 3 previews that land in a "Voice previews" bin, and you save the one you like.
+  - New voices show up in every voice list right away. In **Create**, you can just say "in my voice".
 - **Quick**: skip Claude. Type text or a sound description, generate and import in one click.
 
 Requires **Premiere Pro 25.6 or later** (the first release with UXP plugins).
@@ -30,7 +34,7 @@ In UXP Developer Tool choose ••• → **Package** for this plugin. That giv
 | `manifest.json` | Panel entry point, network allow-list (`api.elevenlabs.io`, `api.anthropic.com`), file system access |
 | `js/settings.js` | API keys in `secureStorage`, other settings in `localStorage`, output folder |
 | `js/claude.js` | Calls the Claude Messages API with a JSON schema so the plan always comes back as typed items |
-| `js/elevenlabs.js` | Voices, text to speech, sound effects, music (raw `pcm_*` output gets a WAV header) |
+| `js/elevenlabs.js` | Voices, text to speech, sound effects, music (raw `pcm_*` output gets a WAV header), instant voice clone, voice design |
 | `js/premiere.js` | Sequence info, save file, import into the bin, overwrite edit onto an audio track |
 | `js/main.js` | UI |
 

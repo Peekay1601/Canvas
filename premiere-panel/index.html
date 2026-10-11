@@ -8,6 +8,7 @@
   <nav class="tabs">
     <button class="tab active" data-tab="create">Create</button>
     <button class="tab" data-tab="quick">Quick</button>
+    <button class="tab" data-tab="voices">Voices</button>
     <button class="tab" data-tab="settings">Settings</button>
   </nav>
 
@@ -70,6 +71,43 @@
 
     <div class="row">
       <button id="quickBtn" class="primary">Generate &amp; import</button>
+    </div>
+  </section>
+
+  <!-- Voices: clone your own voice, or design a new one with Claude -->
+  <section id="tab-voices" class="pane">
+    <h3>Clone my voice</h3>
+    <p class="hint">Upload 1–3 minutes of clean recordings of your own voice (one speaker, no music). Only clone voices you have the right to use.</p>
+    <label for="cloneName">Voice name</label>
+    <input id="cloneName" type="text" placeholder="e.g. My voice" />
+    <div class="row">
+      <button id="cloneFilesBtn">Choose recordings…</button>
+      <span id="cloneFiles" class="path">No files chosen</span>
+    </div>
+    <label class="check"><input type="checkbox" id="cloneDenoise" /> Remove background noise</label>
+    <div class="row">
+      <button id="cloneBtn" class="primary">Create my voice</button>
+    </div>
+
+    <h3>Design a new voice with Claude</h3>
+    <label for="designBrief">Describe the voice you want</label>
+    <textarea id="designBrief" rows="3" placeholder="e.g. Warm, friendly Indian-English male narrator in his 30s, calm and confident, for a tea brand film."></textarea>
+    <div class="row">
+      <button id="designPlanBtn" class="primary">Write it with Claude</button>
+    </div>
+
+    <div id="designBox" class="hidden">
+      <label for="designName">Name</label>
+      <input id="designName" type="text" />
+      <label for="designDescription">Voice description (sent to ElevenLabs)</label>
+      <textarea id="designDescription" rows="4"></textarea>
+      <label for="designText">Preview line (100–1000 characters)</label>
+      <textarea id="designText" rows="4"></textarea>
+      <div class="row">
+        <button id="designPreviewBtn" class="primary">Make previews</button>
+      </div>
+      <p class="hint">Previews are imported into the "Voice previews" bin. Play them in Premiere, then save the one you like.</p>
+      <div id="designPreviews"></div>
     </div>
   </section>
 
