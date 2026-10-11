@@ -9,6 +9,14 @@
     ttsModel: "eleven_v4",
     outputFormat: "mp3_44100_128",
     binName: "AI Audio",
+    stillsCount: "auto",
+    // First audio track (1-based) each sound category is placed from; the panel moves down to the next free track.
+    track_ambience: "3",
+    track_foley: "5",
+    track_human: "7",
+    track_hard_fx: "8",
+    track_designed_fx: "9",
+    track_music: "10",
   };
   const FOLDER_TOKEN_KEY = "aia.outputFolderToken";
 
@@ -35,7 +43,9 @@
 
   function get(name) {
     const v = localStorage.getItem("aia." + name);
-    return v == null || v === "" ? DEFAULTS[name] : v;
+    if (v != null && v !== "") return v;
+    if (name === "soundBrief") return window.AIA.DEFAULT_SOUND_BRIEF;
+    return DEFAULTS[name];
   }
 
   function set(name, value) {

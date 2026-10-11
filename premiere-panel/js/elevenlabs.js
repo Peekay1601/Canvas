@@ -79,8 +79,10 @@
     return resp.arrayBuffer();
   }
 
-  async function soundEffect(text, durationSeconds) {
-    const body = { text, prompt_influence: 0.4 };
+  async function soundEffect(text, durationSeconds, loop) {
+    const body = { text, prompt_influence: 0.4, model_id: "eleven_text_to_sound_v2" };
+    // Seamless loop, for ambience beds that run longer than one 30 s generation.
+    if (loop) body.loop = true;
     // ElevenLabs accepts 0.5–30 s; leave it out to let the model pick.
     if (durationSeconds > 0) body.duration_seconds = Math.min(30, Math.max(0.5, durationSeconds));
     const resp = await request("/v1/sound-generation", {
@@ -91,8 +93,8 @@
     return resp.arrayBuffer();
   }
 
-  async function music(prompt, durationSeconds) {
-    const body = { prompt };
+  async function music(prompt, durationSeconds, instrumental) {
+    const body = { prompt, force_instrumental: instrumental !== false };
     // Music length is 3 s – 10 min; leave it out to let the model pick.
     if (durationSeconds > 0) body.music_length_ms = Math.round(Math.min(600, Math.max(3, durationSeconds)) * 1000);
     const resp = await request("/v1/music", {
@@ -123,8 +125,8 @@
       if (!item.voice_id) throw new Error('"' + item.name + '" has no voice selected.');
       return textToSpeech(item.voice_id, item.text);
     }
-    if (item.type === "sfx") return soundEffect(item.text, item.duration_seconds);
-    if (item.type === "music") return music(item.text, item.duration_seconds);
+    if (item.type === "sfx") return soundEffect(item.text, item.duration_seconds, item.loop);
+    if (item.type === "music") return music(item.text, item.duration_seconds, item.instrumental);
     throw new Error("Unknown item type: " + item.type);
   }
 

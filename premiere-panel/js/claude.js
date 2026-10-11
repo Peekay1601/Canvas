@@ -56,7 +56,9 @@
   }
 
   // One Messages API call whose answer is JSON matching `schema`.
-  async function structuredCall(system, userText, schema) {
+  // `content` is a string or an array of content blocks (text, image, document).
+  async function structuredCall(system, content, schema, opts) {
+    opts = opts || {};
     const key = await S().getKey("claude");
     if (!key) throw new Error("Add your Claude API key in Settings.");
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
@@ -71,10 +73,10 @@
       },
       body: JSON.stringify({
         model: S().get("claudeModel"),
-        max_tokens: 16000,
+        max_tokens: opts.maxTokens || 16000,
         system,
-        messages: [{ role: "user", content: userText }],
-        output_config: { effort: "medium", format: { type: "json_schema", schema } },
+        messages: [{ role: "user", content }],
+        output_config: { effort: opts.effort || "medium", format: { type: "json_schema", schema } },
         fallbacks: "default",
       }),
     });
@@ -88,7 +90,7 @@
       const why = data.stop_details && data.stop_details.explanation;
       throw new Error("Claude declined this request" + (why ? ": " + why : "."));
     }
-    if (data.stop_reason === "max_tokens") throw new Error("Claude's answer was cut off; try a shorter request.");
+    if (data.stop_reason === "max_tokens") throw new Error("Claude's answer was cut off; try fewer stills or a shorter range.");
 
     const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
     try {
@@ -130,6 +132,185 @@
     return result;
   }
 
+
+  // ----- film analysis: shared media -----------------------------------------
+  // film = { context, stills: [{ index, seconds, b64 }], script: { kind: "text"|"pdf", name, text|b64 }, clips: [...] }
+  function filmContent(film) {
+    const U = window.AIA.util;
+    const blocks = [];
+    const ctx = film.context || {};
+    blocks.push({
+      type: "text",
+      text: "Premiere project: " + (ctx.project || "?") + "\nSequence: " + (ctx.sequence || "?") +
+        "\nAnalysed range: " + U.fmtTime(film.start || 0) + " to " + U.fmtTime((film.start || 0) + (film.duration || 0)) +
+        " (" + (film.duration || 0) + " s)\n" + film.stills.length + " stills from the timeline follow, in order, each labelled with its timeline time.",
+    });
+    film.stills.forEach((st) => {
+      blocks.push({ type: "text", text: "Still " + st.index + " at " + U.fmtTime(st.seconds) + " (" + st.seconds + " s)" });
+      blocks.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: st.b64 } });
+    });
+    if (film.clips && film.clips.length) {
+      blocks.push({
+        type: "text",
+        text: "Audio clips on the timeline (possible dub files; names often contain character names):\n" +
+          film.clips.map((c) => "- " + c.name + " | A" + (c.trackIndex + 1) + " | " + U.fmtTime(c.startSec) + "–" + U.fmtTime(c.endSec)).join("\n"),
+      });
+    }
+    if (film.script) {
+      blocks.push({ type: "text", text: "Script (backup reference only; the picture comes first): " + film.script.name });
+      if (film.script.kind === "pdf") {
+        blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: film.script.b64 } });
+      } else {
+        blocks.push({ type: "text", text: "<script>\n" + film.script.text + "\n</script>" });
+      }
+    } else {
+      blocks.push({ type: "text", text: "No script was supplied." });
+    }
+    // Cache the stills + script so the cast and sound passes don't pay for them twice.
+    blocks[blocks.length - 1].cache_control = { type: "ephemeral" };
+    return blocks;
+  }
+
+  const FILM_SYSTEM = [
+    "You are the post-production assistant inside an Adobe Premiere Pro panel, working on a film.",
+    "You receive evenly spaced stills from the editor's timeline (each labelled with its time), an optional script and the names of audio clips on the timeline.",
+    "You cannot hear the audio and you only see the stills, so motion between stills is inferred: say so where it matters.",
+    "The picture is the primary reference; the script is backup for names, dialogue and context the picture cannot show.",
+  ].join("\n");
+
+  // ----- cast: characters + voice prompts --------------------------------------
+  const CAST_SCHEMA = {
+    type: "object",
+    properties: {
+      characters: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "Short lowercase id, e.g. 'ravi'." },
+            name: { type: "string", description: "Character name: from the dub file names or script if available, otherwise a short visual description like 'Old Priest'." },
+            name_source: { type: "string", enum: ["dub_file", "script", "visual"] },
+            age_range: { type: "string", description: "e.g. 'late 60s'." },
+            gender: { type: "string" },
+            look: { type: "string", description: "Appearance seen in the stills: build, face, hair, costume, period. One or two sentences." },
+            personality: { type: "string", description: "Bearing and temperament as seen or as the script states." },
+            voice_prompt: { type: "string", description: "ElevenLabs Voice Design description, 150–900 characters: age, gender, accent and region fitting the film's cultural setting, pitch, timbre, pace, texture, emotional colour, and 'studio-quality recording'. Grounded in the character's age and look." },
+            preview_line: { type: "string", description: "100–900 characters this character would say, in the film's language and register. Use the character's real lines from the script when available." },
+            best_still: { type: "integer", description: "Still number with the clearest view of this character's face." },
+            stills: { type: "array", items: { type: "integer" }, description: "Still numbers where the character appears." },
+            dub_clips: { type: "array", items: { type: "string" }, description: "Exact names of timeline audio clips that are this character's dub/dialogue. Empty if none match." },
+            notes: { type: "string", description: "Uncertainties worth flagging. Empty if none." },
+          },
+          required: ["id", "name", "name_source", "age_range", "gender", "look", "personality", "voice_prompt", "preview_line", "best_still", "stills", "dub_clips", "notes"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["characters"],
+    additionalProperties: false,
+  };
+
+  async function analyzeCast(film) {
+    const content = filmContent(film).concat([{
+      type: "text",
+      text: [
+        "TASK: map the characters.",
+        "List every distinct speaking or prominent on-screen character (skip background extras).",
+        "Name them from the dub file names first, then the script, otherwise describe them visually.",
+        "Match timeline audio clips to characters by their names; never guess a clip that doesn't clearly belong.",
+        "Write a voice_prompt from the character's age, look, bearing and the film's cultural and period setting. Never describe or imitate a real, named person.",
+      ].join("\n"),
+    }]);
+    const out = await structuredCall(FILM_SYSTEM, content, CAST_SCHEMA, { maxTokens: 16000 });
+    out.characters.forEach((c) => {
+      c.voice_prompt = c.voice_prompt.slice(0, 1000);
+      if (c.preview_line.length > 1000) c.preview_line = c.preview_line.slice(0, 1000);
+    });
+    return out;
+  }
+
+  // ----- sound: cue sheet from the master brief ------------------------------------
+  const CUE_SCHEMA = {
+    type: "object",
+    properties: {
+      scene: {
+        type: "object",
+        properties: {
+          setting_period: { type: "string" },
+          emotion_arc: { type: "string", description: "starting feeling → change → final feeling" },
+          perspective: { type: "string" },
+          key_moments: { type: "string", description: "Timestamps of key dramatic moments." },
+          ending: { type: "string" },
+        },
+        required: ["setting_period", "emotion_arc", "perspective", "key_moments", "ending"],
+        additionalProperties: false,
+      },
+      cues: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "e.g. 'AMB-01', 'FOL-07'." },
+            category: { type: "string", enum: ["ambience", "foley", "human", "hard_fx", "designed_fx"] },
+            title: { type: "string", description: "Short cue name for the cue sheet." },
+            start_seconds: { type: "number", description: "Timeline time in seconds." },
+            duration_seconds: { type: "number", description: "Length on the timeline. Ambience may run long; other cues 0.5–30 s." },
+            prompt: { type: "string", description: "Self-contained ElevenLabs sound-effects prompt under 450 characters: source, material, action, intensity, space and perspective. No music, no speech." },
+            evidence: { type: "string", enum: ["observed", "script", "inferred"] },
+            stills: { type: "array", items: { type: "integer" } },
+            loop: { type: "boolean", description: "true for continuous beds that should loop seamlessly (ambience, room tone)." },
+            intensity: { type: "string", enum: ["soft", "medium", "strong"] },
+            notes: { type: "string" },
+          },
+          required: ["id", "category", "title", "start_seconds", "duration_seconds", "prompt", "evidence", "stills", "loop", "intensity", "notes"],
+          additionalProperties: false,
+        },
+      },
+      limitations: { type: "string", description: "What could not be judged from stills alone." },
+    },
+    required: ["scene", "cues", "limitations"],
+    additionalProperties: false,
+  };
+
+  async function analyzeSound(film, brief) {
+    const content = filmContent(film).concat([{
+      type: "text",
+      text: [
+        "TASK: build the sound cue sheet for this footage following the brief below. Each cue becomes one ElevenLabs sound-effects generation.",
+        "Categories: ambience (beds, room tone, environment layers), foley (footsteps, cloth, props, touch), human (non-verbal vocals: breaths, efforts, crowd walla — never words), hard_fx (impacts, doors, weapons, vehicles, machinery), designed_fx (supernatural, transitions, subjective or stylised sounds).",
+        "Time every cue to the still where its cause is visible. Mark evidence honestly: observed (visible in a still), script (only the script says so), inferred (plausible between stills).",
+        "Do not add music, narration or dialogue cues.",
+        "",
+        "=== MASTER SOUND DESIGN BRIEF ===",
+        brief,
+      ].join("\n"),
+    }]);
+    return structuredCall(FILM_SYSTEM, content, CUE_SCHEMA, { maxTokens: 32000 });
+  }
+
+  // ----- music: score prompt ------------------------------------------------------
+  const MUSIC_SCHEMA = {
+    type: "object",
+    properties: {
+      title: { type: "string", description: "Short cue title, e.g. 'Dawn at the river'." },
+      prompt: { type: "string", description: "ElevenLabs Music prompt under 900 characters: genre and tradition, mood arc, instrumentation, tempo (BPM), key/mode, dynamics and structure with timings." },
+    },
+    required: ["title", "prompt"],
+    additionalProperties: false,
+  };
+
+  async function writeMusicPrompt(mood, brief, seconds, scene) {
+    const lines = [
+      "Write one film score cue prompt for ElevenLabs Music.",
+      "Mood: " + mood,
+      "Length: " + seconds + " seconds",
+      brief ? "What the editor wants: " + brief : "",
+      scene ? "Scene analysis from the footage: " + JSON.stringify(scene) : "",
+      "Fit the film's cultural and period setting where known. Instrumental unless the editor asks for voices.",
+    ];
+    return structuredCall("You are a film composer writing prompts for an AI music generator inside Adobe Premiere Pro.", lines.filter(Boolean).join("\n"), MUSIC_SCHEMA);
+  }
+
   async function ping() {
     const key = await S().getKey("claude");
     if (!key) throw new Error("No Claude key saved.");
@@ -143,5 +324,5 @@
     if (!resp.ok) throw new Error("Claude key rejected (" + resp.status + ").");
   }
 
-  window.AIA.claude = { plan, designVoice, ping };
+  window.AIA.claude = { plan, designVoice, analyzeCast, analyzeSound, writeMusicPrompt, ping };
 })();

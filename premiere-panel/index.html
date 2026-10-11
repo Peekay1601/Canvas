@@ -6,227 +6,323 @@
 </head>
 <body>
   <div class="app">
+    <!-- ================= HEADER ================= -->
     <header class="topbar">
       <div class="brand">
-        <span class="logo"></span>
-        <span class="title">AI Audio Studio</span>
+        <span class="logo">♪</span>
+        <div>
+          <div class="title">AI Audio Studio</div>
+          <div id="seqName" class="subtitle">No sequence open</div>
+        </div>
       </div>
-      <div class="keys">
-        <span id="keyEleven" class="key-pill">ElevenLabs</span>
-        <span id="keyClaude" class="key-pill">Claude</span>
+      <div class="top-actions">
+        <span id="keyEleven" class="key-pill" title="ElevenLabs key">11</span>
+        <span id="keyClaude" class="key-pill" title="Claude key">C</span>
+        <button id="settingsBtn" class="icon-btn" title="Settings">⚙</button>
       </div>
     </header>
 
     <nav class="tabs">
-      <button class="tab active" data-tab="create">Create</button>
-      <button class="tab" data-tab="change">Change voice</button>
-      <button class="tab" data-tab="voices">Voices</button>
-      <button class="tab" data-tab="settings">Settings</button>
+      <button class="tab active" data-tab="film"><span class="tab-icon">🎬</span><span class="tab-label">Film</span></button>
+      <button class="tab" data-tab="cast"><span class="tab-icon">🎭</span><span class="tab-label">Cast</span></button>
+      <button class="tab" data-tab="sound"><span class="tab-icon">🔊</span><span class="tab-label">Sound</span></button>
+      <button class="tab" data-tab="music"><span class="tab-icon">🎵</span><span class="tab-label">Music</span></button>
+      <button class="tab" data-tab="library"><span class="tab-icon">📚</span><span class="tab-label">Library</span></button>
+      <button class="tab" data-tab="voices"><span class="tab-icon">🎙</span><span class="tab-label">Voices</span></button>
+      <button class="tab" data-tab="tools"><span class="tab-icon">🧰</span><span class="tab-label">Tools</span></button>
     </nav>
 
     <main class="content">
 
-      <!-- =================== CREATE =================== -->
-      <section id="tab-create" class="pane active">
-        <div class="segmented" id="createMode">
-          <button class="seg active" data-value="claude">Plan with Claude</button>
-          <button class="seg" data-value="direct">Direct</button>
+      <!-- ================= FILM ================= -->
+      <section id="tab-film" class="pane active">
+        <div class="hero">
+          <div class="hero-title">Start here</div>
+          <div class="hero-text">Three steps: add your script, grab stills from the timeline, and let Claude find the characters and every sound the film needs.</div>
         </div>
 
-        <!-- Claude mode -->
-        <div id="claudeMode">
-          <div class="card">
-            <div class="field">
-              <label for="prompt">Describe the audio you want</label>
-              <textarea id="prompt" rows="5" placeholder="In my voice, say 'Every great story begins with a cup of chai'. Then a soft kettle whistle, under a warm lo-fi bed for 20 seconds."></textarea>
-            </div>
-            <label class="toggle"><input type="checkbox" id="useContext" checked /><span>Share sequence name, playhead and length with Claude</span></label>
-            <button id="planBtn" class="btn primary block">Plan with Claude</button>
-          </div>
-
-          <div id="planBox" class="hidden">
-            <div class="section-head">
-              <span>Plan</span>
-              <button id="clearPlanBtn" class="btn ghost small">Clear</button>
-            </div>
-            <p id="planSummary" class="muted"></p>
-            <div id="planItems"></div>
-          </div>
+        <div class="card step-card" id="stepScript">
+          <div class="step-head"><span class="step-num">1</span><span class="step-title">Script</span><span class="tag">optional</span><span id="scriptCheck" class="check hidden">✓</span></div>
+          <p class="hint">Backup reference for names and lines. The picture always comes first. TXT, Fountain, FDX, SRT or PDF.</p>
+          <div id="scriptInfo" class="file-chip hidden"><span id="scriptName" class="grow"></span><button id="scriptRemoveBtn" class="btn ghost small">Remove</button></div>
+          <button id="scriptBtn" class="btn block">Upload script…</button>
         </div>
 
-        <!-- Direct mode -->
-        <div id="directMode" class="hidden">
-          <div class="card">
-            <div class="segmented small" id="directType">
-              <button class="seg active" data-value="speech">Voiceover</button>
-              <button class="seg" data-value="sfx">Sound effect</button>
-              <button class="seg" data-value="music">Music</button>
-            </div>
-            <div class="field" id="directVoiceField">
-              <label for="directVoice">Voice</label>
-              <select id="directVoice" class="voice-select"></select>
-            </div>
-            <div class="field">
-              <label for="directText" id="directTextLabel">Text to speak</label>
-              <textarea id="directText" rows="5"></textarea>
-            </div>
-            <div class="field hidden" id="directDurationField">
-              <label for="directDuration">Length in seconds (0 = automatic)</label>
-              <input id="directDuration" type="number" min="0" step="0.5" value="0" />
-            </div>
+        <div class="card step-card" id="stepStills">
+          <div class="step-head"><span class="step-num">2</span><span class="step-title">Stills from the timeline</span><span id="stillsCheck" class="check hidden">✓</span></div>
+          <p class="hint">Saved in their own folder: <span id="stillsFolder" class="mono">…/stills/</span></p>
+          <div class="inline-field">
+            <label for="stillsCount">How many stills</label>
+            <select id="stillsCount" class="compact">
+              <option value="auto">Auto (1 every 2 s)</option>
+              <option value="24">24</option>
+              <option value="40">40</option>
+              <option value="60">60</option>
+              <option value="80">80 (max)</option>
+            </select>
           </div>
+          <label class="toggle"><input type="checkbox" id="stillsInOut" /><span>Only between the sequence In and Out marks</span></label>
+          <button id="grabBtn" class="btn primary block">Grab stills</button>
+          <div id="stillsGrid" class="thumb-grid"></div>
         </div>
 
-        <!-- Shared: placement + generate -->
-        <div id="generateBox" class="card hidden">
-          <label class="toggle"><input type="checkbox" id="placeOnTimeline" checked /><span>Add to the timeline at the playhead</span></label>
-          <div class="inline-field" id="trackField">
-            <label for="firstTrack">First audio track</label>
-            <input id="firstTrack" type="number" min="1" value="1" class="num" />
+        <div class="card step-card" id="stepAnalyse">
+          <div class="step-head"><span class="step-num">3</span><span class="step-title">Analyse with Claude</span><span id="analyseCheck" class="check hidden">✓</span></div>
+          <label class="toggle"><input type="checkbox" id="doCast" checked /><span>Find characters and write voice prompts</span></label>
+          <label class="toggle"><input type="checkbox" id="doSound" checked /><span>Build the sound cue sheet</span></label>
+          <button id="analyseBtn" class="btn primary block">Analyse film</button>
+          <div id="analyseResult" class="result-row hidden">
+            <button class="result-chip" data-goto="cast"><span id="resCast">0</span> characters →</button>
+            <button class="result-chip" data-goto="sound"><span id="resCues">0</span> sound cues →</button>
           </div>
-          <p class="hint" id="trackHint">Each item gets its own track (A1, A2, …).</p>
-          <button id="generateBtn" class="btn primary block">Generate</button>
         </div>
       </section>
 
-      <!-- =================== CHANGE VOICE =================== -->
-      <section id="tab-change" class="pane">
-        <p class="lead">Re-perform a recording in another voice. Timing, pauses and emotion stay; only the voice changes.</p>
-
-        <div class="card">
-          <div class="step"><span class="step-num">1</span>Recording</div>
-          <div class="segmented small" id="changeSource">
-            <button class="seg active" data-value="timeline">Timeline selection</button>
-            <button class="seg" data-value="file">File</button>
-          </div>
-          <div id="changeTimeline">
-            <p class="hint">Select one or more audio clips on the timeline, then read them.</p>
-            <button id="readSelectionBtn" class="btn block">Use selected clips</button>
-            <div id="selectedClips"></div>
-          </div>
-          <div id="changeFile" class="hidden">
-            <button id="changeFileBtn" class="btn block">Choose audio file…</button>
-            <p id="changeFileName" class="hint">No file chosen</p>
-          </div>
+      <!-- ================= CAST ================= -->
+      <section id="tab-cast" class="pane">
+        <div id="castEmpty" class="empty-state">
+          <div class="empty-icon">🎭</div>
+          <div class="empty-title">No characters yet</div>
+          <div class="empty-text">Go to <b>Film</b>, grab stills and press <b>Analyse film</b>. Each character shows up here with a still, a voice picker and three voice options to approve.</div>
         </div>
-
-        <div class="card">
-          <div class="step"><span class="step-num">2</span>New voice</div>
-          <select id="changeVoice" class="voice-select"></select>
-          <label class="toggle"><input type="checkbox" id="changeDenoise" /><span>Remove background noise</span></label>
+        <div id="castBar" class="summary-bar hidden">
+          <span id="castSummary" class="grow"></span>
+          <button id="castChangeAllBtn" class="btn primary small">Change all approved</button>
         </div>
-
-        <button id="changeBtn" class="btn primary block">Change voice</button>
-        <p class="hint">The new take lands on the first free track below the original, in sync. WAV clips are cut to the part you used; other formats send the whole file (more credits).</p>
+        <div id="castGrid" class="card-grid"></div>
       </section>
 
-      <!-- =================== VOICES =================== -->
-      <section id="tab-voices" class="pane">
+      <!-- ================= SOUND ================= -->
+      <section id="tab-sound" class="pane">
+        <div id="soundEmpty" class="empty-state">
+          <div class="empty-icon">🔊</div>
+          <div class="empty-title">No cue sheet yet</div>
+          <div class="empty-text">Go to <b>Film</b> and press <b>Analyse film</b>. Claude spots every sound from the stills and script, split into ambience, Foley, human, hard effects and designed effects.</div>
+        </div>
+
+        <div id="soundBody" class="hidden">
+          <div id="sceneCard" class="card scene-card"></div>
+
+          <div class="chips" id="cueFilter"></div>
+
+          <div class="summary-bar">
+            <label class="toggle inline"><input type="checkbox" id="cueSelectAll" /><span>Select all</span></label>
+            <span id="cueCount" class="grow right muted"></span>
+          </div>
+          <div id="cueList"></div>
+
+          <div class="card action-card">
+            <label class="toggle"><input type="checkbox" id="cuePlace" checked /><span>Put on the timeline at the cue time</span></label>
+            <button id="cueGenerateBtn" class="btn primary block">Generate selected</button>
+            <button id="cueCsvBtn" class="btn block">Save cue sheet (CSV)</button>
+          </div>
+        </div>
+
+        <div class="card collapsible">
+          <button class="coll-head"><span>🎚 Tracks for each sound type</span><span class="chev">▾</span></button>
+          <div class="coll-body hidden">
+            <p class="hint">Each type starts on this audio track and moves down to the next free one. Nothing already on the timeline is overwritten.</p>
+            <div id="trackMap"></div>
+          </div>
+        </div>
+
+        <div class="card collapsible">
+          <button class="coll-head"><span>📝 Master sound design brief</span><span class="chev">▾</span></button>
+          <div class="coll-body hidden">
+            <p class="hint">Claude follows this brief when it builds the cue sheet.</p>
+            <textarea id="soundBrief" rows="14" class="mono-text"></textarea>
+            <div class="button-row">
+              <button id="briefSaveBtn" class="btn primary grow">Save brief</button>
+              <button id="briefResetBtn" class="btn grow">Reset to default</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= MUSIC ================= -->
+      <section id="tab-music" class="pane">
+        <div class="card">
+          <div class="section-title">1 · Pick a mood</div>
+          <div class="chips wrap" id="moodChips"></div>
+          <input id="moodOther" type="text" class="hidden" placeholder="Describe the mood" />
+        </div>
+        <div class="card">
+          <div class="section-title">2 · Describe the moment (optional)</div>
+          <textarea id="musicBrief" rows="3" placeholder="e.g. The hero walks into the ruined temple at dawn. Starts quiet, builds to awe."></textarea>
+          <div class="inline-field">
+            <label for="musicLength">Length (seconds)</label>
+            <input id="musicLength" type="number" min="3" max="600" value="30" class="num" />
+          </div>
+          <label class="toggle"><input type="checkbox" id="musicInstrumental" checked /><span>Instrumental only</span></label>
+          <label class="toggle"><input type="checkbox" id="musicUseScene" checked /><span>Use the film analysis (setting and emotion)</span></label>
+          <button id="musicPromptBtn" class="btn primary block">✨ Write the score prompt</button>
+        </div>
+        <div class="card hidden" id="musicPromptCard">
+          <div class="section-title">3 · Check the prompt</div>
+          <input id="musicTitle" type="text" />
+          <textarea id="musicPrompt" rows="6"></textarea>
+          <label class="toggle"><input type="checkbox" id="musicPlace" checked /><span>Put on the timeline at the playhead</span></label>
+          <button id="musicGenerateBtn" class="btn primary block">🎵 Generate music</button>
+        </div>
+        <p class="hint center">Everything you generate is saved in <b>Library → Music</b>, grouped by mood.</p>
+      </section>
+
+      <!-- ================= LIBRARY ================= -->
+      <section id="tab-library" class="pane">
+        <div class="segmented" id="libKind">
+          <button class="seg active" data-value="sound">🔊 Sounds</button>
+          <button class="seg" data-value="music">🎵 Music</button>
+        </div>
         <div class="toolbar">
-          <input id="voiceSearch" type="text" placeholder="Search voices" class="grow" />
-          <button id="refreshVoicesBtn" class="btn small" title="Refresh">Refresh</button>
+          <input id="libSearch" type="text" placeholder="Search the library" class="grow" />
+          <button id="libRefreshBtn" class="btn small">Refresh</button>
         </div>
+        <div class="chips wrap" id="libFilter"></div>
+        <div id="libList"></div>
+      </section>
+
+      <!-- ================= VOICES ================= -->
+      <section id="tab-voices" class="pane">
+        <div class="section-head"><span>Character voices</span><span class="muted small">reusable in any timeline</span></div>
+        <div id="castLibrary"></div>
+
+        <div class="section-head"><span>ElevenLabs voices</span><button id="refreshVoicesBtn" class="btn ghost small">Refresh</button></div>
+        <div class="toolbar"><input id="voiceSearch" type="text" placeholder="Search voices" class="grow" /></div>
         <div class="segmented small" id="voiceFilter">
           <button class="seg active" data-value="own">My voices</button>
           <button class="seg" data-value="all">All voices</button>
         </div>
         <div id="voiceList"></div>
 
-        <div class="card collapsible" id="cloneSection">
-          <button class="coll-head" data-target="cloneSection"><span>Clone my voice</span><span class="chev">▾</span></button>
+        <div class="card collapsible">
+          <button class="coll-head"><span>🎤 Clone my voice</span><span class="chev">▾</span></button>
           <div class="coll-body hidden">
-          <p class="hint">Upload 1–3 minutes of clean recordings of your own voice. One speaker, no music. Only clone voices you have the right to use.</p>
-          <div class="field">
-            <label for="cloneName">Voice name</label>
-            <input id="cloneName" type="text" placeholder="My voice" />
-          </div>
-          <button id="cloneFilesBtn" class="btn block">Choose recordings…</button>
-          <p id="cloneFiles" class="hint">No files chosen</p>
-          <label class="toggle"><input type="checkbox" id="cloneDenoise" /><span>Remove background noise</span></label>
-          <button id="cloneBtn" class="btn primary block">Create my voice</button>
+            <p class="hint">1–3 minutes of clean recordings of your own voice. One speaker, no music. Only clone voices you have the right to use.</p>
+            <div class="field"><label for="cloneName">Voice name</label><input id="cloneName" type="text" placeholder="My voice" /></div>
+            <button id="cloneFilesBtn" class="btn block">Choose recordings…</button>
+            <p id="cloneFiles" class="hint">No files chosen</p>
+            <label class="toggle"><input type="checkbox" id="cloneDenoise" /><span>Remove background noise</span></label>
+            <button id="cloneBtn" class="btn primary block">Create my voice</button>
           </div>
         </div>
 
-        <div class="card collapsible" id="designSection">
-          <button class="coll-head" data-target="designSection"><span>Design a new voice with Claude</span><span class="chev">▾</span></button>
+        <div class="card collapsible">
+          <button class="coll-head"><span>✨ Design a voice with Claude</span><span class="chev">▾</span></button>
           <div class="coll-body hidden">
-          <div class="field">
-            <label for="designBrief">Describe the voice</label>
-            <textarea id="designBrief" rows="3" placeholder="Warm Indian-English female narrator, late 20s, soft and confident, for a tea brand film."></textarea>
-          </div>
-          <button id="designPlanBtn" class="btn primary block">Write it with Claude</button>
-
-          <div id="designBox" class="hidden">
-            <div class="field">
-              <label for="designName">Name</label>
-              <input id="designName" type="text" />
+            <div class="field"><label for="designBrief">Describe the voice</label>
+              <textarea id="designBrief" rows="3" placeholder="Warm Indian-English female narrator, late 20s, soft and confident."></textarea></div>
+            <button id="designPlanBtn" class="btn primary block">Write it with Claude</button>
+            <div id="designBox" class="hidden">
+              <div class="field"><label for="designName">Name</label><input id="designName" type="text" /></div>
+              <div class="field"><label for="designDescription">Voice description</label><textarea id="designDescription" rows="4"></textarea></div>
+              <div class="field"><label for="designText">Preview line (100–1000 characters)</label><textarea id="designText" rows="3"></textarea></div>
+              <button id="designPreviewBtn" class="btn primary block">Make 3 options</button>
+              <div id="designPreviews"></div>
             </div>
-            <div class="field">
-              <label for="designDescription">Voice description</label>
-              <textarea id="designDescription" rows="4"></textarea>
-            </div>
-            <div class="field">
-              <label for="designText">Preview line (100–1000 characters)</label>
-              <textarea id="designText" rows="4"></textarea>
-            </div>
-            <button id="designPreviewBtn" class="btn primary block">Make 3 previews</button>
-            <div id="designPreviews"></div>
-          </div>
           </div>
         </div>
       </section>
 
-      <!-- =================== SETTINGS =================== -->
+      <!-- ================= TOOLS ================= -->
+      <section id="tab-tools" class="pane">
+        <div class="segmented" id="toolMode">
+          <button class="seg active" data-value="create">✨ Quick create</button>
+          <button class="seg" data-value="change">🔁 Change voice</button>
+        </div>
+
+        <div id="toolCreate">
+          <div class="segmented small" id="createMode">
+            <button class="seg active" data-value="claude">Plan with Claude</button>
+            <button class="seg" data-value="direct">Direct</button>
+          </div>
+          <div id="claudeMode">
+            <div class="card">
+              <div class="field"><label for="prompt">Describe the audio you want</label>
+                <textarea id="prompt" rows="4" placeholder="In my voice, say 'Every great story begins with a cup of chai'. Then a kettle whistle under a warm lo-fi bed for 20 seconds."></textarea></div>
+              <label class="toggle"><input type="checkbox" id="useContext" checked /><span>Share sequence name and playhead with Claude</span></label>
+              <button id="planBtn" class="btn primary block">Plan with Claude</button>
+            </div>
+            <div id="planBox" class="hidden">
+              <div class="section-head"><span>Plan</span><button id="clearPlanBtn" class="btn ghost small">Clear</button></div>
+              <p id="planSummary" class="muted"></p>
+              <div id="planItems"></div>
+            </div>
+          </div>
+          <div id="directMode" class="hidden">
+            <div class="card">
+              <div class="segmented small" id="directType">
+                <button class="seg active" data-value="speech">Voiceover</button>
+                <button class="seg" data-value="sfx">Sound effect</button>
+                <button class="seg" data-value="music">Music</button>
+              </div>
+              <div class="field" id="directVoiceField"><label for="directVoice">Voice</label><select id="directVoice" class="voice-select"></select></div>
+              <div class="field"><label for="directText" id="directTextLabel">Text to speak</label><textarea id="directText" rows="4"></textarea></div>
+              <div class="field hidden" id="directDurationField"><label for="directDuration">Length in seconds (0 = automatic)</label>
+                <input id="directDuration" type="number" min="0" step="0.5" value="0" /></div>
+            </div>
+          </div>
+          <div id="generateBox" class="card hidden">
+            <label class="toggle"><input type="checkbox" id="placeOnTimeline" checked /><span>Add to the timeline at the playhead</span></label>
+            <div class="inline-field" id="trackField"><label for="firstTrack">First audio track</label><input id="firstTrack" type="number" min="1" value="1" class="num" /></div>
+            <button id="generateBtn" class="btn primary block">Generate</button>
+          </div>
+        </div>
+
+        <div id="toolChange" class="hidden">
+          <p class="lead">Re-perform any recording in another voice. Timing, pauses and emotion stay; only the voice changes.</p>
+          <div class="card">
+            <div class="step-head"><span class="step-num">1</span><span class="step-title">Recording</span></div>
+            <div class="segmented small" id="changeSource">
+              <button class="seg active" data-value="timeline">Timeline selection</button>
+              <button class="seg" data-value="file">File</button>
+            </div>
+            <div id="changeTimeline">
+              <p class="hint">Click the audio clips on the timeline (Shift-click for more).</p>
+              <button id="readSelectionBtn" class="btn block">Use selected clips</button>
+              <div id="selectedClips"></div>
+            </div>
+            <div id="changeFile" class="hidden">
+              <button id="changeFileBtn" class="btn block">Choose audio file…</button>
+              <p id="changeFileName" class="hint">No file chosen</p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="step-head"><span class="step-num">2</span><span class="step-title">New voice</span></div>
+            <select id="changeVoice" class="voice-select"></select>
+            <label class="toggle"><input type="checkbox" id="changeDenoise" /><span>Remove background noise</span></label>
+          </div>
+          <button id="changeBtn" class="btn primary block">Change voice</button>
+        </div>
+      </section>
+
+      <!-- ================= SETTINGS ================= -->
       <section id="tab-settings" class="pane">
+        <div class="section-head"><span>Settings</span><button id="settingsCloseBtn" class="btn ghost small">Done</button></div>
         <div class="card">
           <div class="section-title">API keys</div>
-          <div class="field">
-            <label for="elevenKey">ElevenLabs</label>
-            <input id="elevenKey" type="password" placeholder="xi-…" />
-          </div>
-          <div class="field">
-            <label for="claudeKey">Claude</label>
-            <input id="claudeKey" type="password" placeholder="sk-ant-…" />
-          </div>
-          <p class="hint">Stored in your system's secure storage (Keychain / Credential Manager), on this computer only.</p>
+          <div class="field"><label for="elevenKey">ElevenLabs</label><input id="elevenKey" type="password" placeholder="xi-…" /></div>
+          <div class="field"><label for="claudeKey">Claude</label><input id="claudeKey" type="password" placeholder="sk-ant-…" /></div>
+          <p class="hint">Stored in your system's secure storage on this computer only.</p>
         </div>
-
         <div class="card">
           <div class="section-title">Models</div>
-          <div class="field">
-            <label for="claudeModel">Claude model</label>
-            <input id="claudeModel" type="text" />
-          </div>
-          <div class="field">
-            <label for="ttsModel">ElevenLabs voice model</label>
-            <input id="ttsModel" type="text" />
-          </div>
+          <div class="field"><label for="claudeModel">Claude model</label><input id="claudeModel" type="text" /></div>
+          <div class="field"><label for="ttsModel">ElevenLabs voice model</label><input id="ttsModel" type="text" /></div>
         </div>
-
         <div class="card">
           <div class="section-title">Output</div>
-          <div class="field">
-            <label for="outputFormat">Audio format</label>
+          <div class="field"><label for="outputFormat">Audio format</label>
             <select id="outputFormat">
               <option value="mp3_44100_128">MP3 · 44.1 kHz · 128 kbps (any plan)</option>
               <option value="mp3_44100_192">MP3 · 44.1 kHz · 192 kbps (Creator+)</option>
               <option value="pcm_44100">WAV · 44.1 kHz (Pro+)</option>
               <option value="pcm_48000">WAV · 48 kHz (Pro+)</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Save files to</label>
-            <div class="toolbar">
-              <span id="outputFolder" class="path grow">Plugin data folder</span>
-              <button id="chooseFolderBtn" class="btn small">Change</button>
-            </div>
-          </div>
-          <div class="field">
-            <label for="binName">Project bin</label>
-            <input id="binName" type="text" />
-          </div>
+            </select></div>
+          <div class="field"><label>Save everything in</label>
+            <div class="toolbar"><span id="outputFolder" class="path grow">Plugin data folder</span><button id="chooseFolderBtn" class="btn small">Change</button></div>
+            <p class="hint">Each project gets its own folder with stills, cue sheets, sound, music and voices inside.</p></div>
+          <div class="field"><label for="binName">Project bin</label><input id="binName" type="text" /></div>
         </div>
-
         <div class="button-row">
           <button id="saveSettingsBtn" class="btn primary grow">Save</button>
           <button id="testKeysBtn" class="btn grow">Test keys</button>
@@ -234,6 +330,7 @@
       </section>
     </main>
 
+    <!-- ================= STATUS ================= -->
     <footer class="statusbar">
       <div class="status-line" id="statusToggle">
         <span id="statusDot" class="dot"></span>
@@ -247,11 +344,23 @@
     </footer>
   </div>
 
+  <script src="js/brief.js"></script>
+  <script src="js/util.js"></script>
   <script src="js/settings.js"></script>
   <script src="js/wav.js"></script>
   <script src="js/elevenlabs.js"></script>
   <script src="js/claude.js"></script>
   <script src="js/premiere.js"></script>
-  <script src="js/main.js"></script>
+  <script src="js/library.js"></script>
+  <script src="js/ui/core.js"></script>
+  <script src="js/ui/voices.js"></script>
+  <script src="js/ui/film.js"></script>
+  <script src="js/ui/cast.js"></script>
+  <script src="js/ui/sound.js"></script>
+  <script src="js/ui/music.js"></script>
+  <script src="js/ui/library.js"></script>
+  <script src="js/ui/tools.js"></script>
+  <script src="js/ui/settings.js"></script>
+  <script src="js/ui/app.js"></script>
 </body>
 </html>
