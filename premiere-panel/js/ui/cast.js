@@ -51,6 +51,7 @@
       project: project.name.replace(/\.prproj$/i, ""),
       sequence: state.film.sequence,
       still: still ? still.path : "",
+      photo: c.photo || null,
     });
     await A.ui.refreshVoices();
     await saveFilm();
@@ -76,41 +77,57 @@
     log(c.name + " → one " + Math.round(r.seconds) + " s layer" + (r.track ? " on A" + r.track : " in the bin (no free track)") + ". " + Math.round(r.sentSeconds) + " s of speech converted.", "ok");
   }
 
-  function optionRow(c, opt) {
-    const play = el("button", { class: "btn tiny", text: "▶", title: "Play" });
-    play.addEventListener("click", () => busy(play, () => A.premiere.playPreview(c.name + " " + opt.letter, opt.bytes)));
-    const use = el("button", { class: "btn tiny good", text: "✓", title: "Approve this voice" });
-    use.addEventListener("click", () =>
-      busy(use, async () => {
-        const name = c.name + " · " + sourceLabel(c);
-        log("Saving " + name + " to your ElevenLabs voices…");
-        const id = await A.eleven.saveDesignedVoice(name, c.voice_prompt, opt.generated_voice_id);
-        await A.ui.refreshVoices();
-        await approve(c, id);
-      })
-    );
-    return el("div", { class: "opt" }, [el("span", { text: c.name + " " + opt.letter + " · " + sourceLabel(c) }), play, use]);
+  // Turns a designed option (A/B/C) into a saved, approved, locked voice.
+  async function approveOption(c, opt) {
+    const name = c.name + " · " + sourceLabel(c);
+    log("Saving " + name + " to your ElevenLabs voices…");
+    const id = await A.eleven.saveDesignedVoice(name, c.voice_prompt, opt.generated_voice_id);
+    await A.ui.refreshVoices();
+    await approve(c, id);
   }
 
-  // Dub audio mapping: an uploaded file, a timeline track, or upload a new full file.
-  function mapBox(c) {
-    const select = el("select");
-    select.appendChild(el("option", { value: "", text: "Map dub audio…" }));
-    (state.dubFiles || []).forEach((f) => select.appendChild(el("option", { value: "file:" + f.path, text: "🎧 " + f.name })));
-    for (let i = 0; i < trackCount; i++) select.appendChild(el("option", { value: "track:" + i, text: "🎚 Track A" + (i + 1) + " (whole layer)" }));
-    select.appendChild(el("option", { value: "upload", text: "⬆ Upload full file…" }));
-    select.value = !c.source ? "" : c.source.type === "file" ? "file:" + c.source.path : "track:" + c.source.index;
-
-    select.addEventListener("change", () =>
-      busy(select, async () => {
-        const v = select.value;
-        if (v === "upload") {
-          const file = await uxp.storage.localFileSystem.getFileForOpening({ types: ["wav", "mp3", "m4a", "aac", "flac", "aif", "aiff", "mp4", "mov"] });
-          if (!file) { render(); return; }
-          await A.ui.film.addDubFiles([file]);
-          c.source = { type: "file", path: file.nativePath, name: file.name, offset: 0 };
-        } else if (v.indexOf("file:") === 0) {
-          const f = state.dubFiles.find((x) => x.path === v.slice(5));
+  // Dub audio mapping picker: an uploaded file, a timeline track, or upload a new full file.
+  function mapPicker(c) {
+    const current = !c.source ? "" : c.source.type === "file" ? "file:" + c.source.path : "track:" + c.source.index;
+    const p = A.ui.picker({
+      value: current,
+      title: "Dub audio for " + c.name,
+      placeholder: "Map dub audio…",
+      search: false,
+      labelFor: (v) => {
+        if (!v) return "";
+        if (v.indexOf("track:") === 0) return "🎚 Track A" + (parseInt(v.slice(6), 10) + 1);
+        const f = (state.dubFiles || []).find((x) => "file:" + x.path === v);
+        return "🎧 " + (f ? f.name : c.source && c.source.name ? c.source.name : "file");
+      },
+      getGroups: () => {
+        const tracks = [];
+        for (let i = 0; i < trackCount; i++) tracks.push({ value: "track:" + i, label: "Track A" + (i + 1), sub: "Every clip on this track, as one layer", icon: "🎚" });
+        return [
+          {
+            label: "🎧 Dubbing files",
+            note: (state.dubFiles || []).length ? null : "No dubbing files yet. Upload one below or add them in Film → step 1.",
+            actions: [{
+              text: "⬆ Upload full file…",
+              onClick: async () => {
+                const file = await uxp.storage.localFileSystem.getFileForOpening({ types: ["wav", "mp3", "m4a", "aac", "flac", "aif", "aiff", "mp4", "mov"] });
+                if (!file) return;
+                await A.ui.film.addDubFiles([file]);
+                c.source = { type: "file", path: file.nativePath, name: file.name, offset: 0 };
+                c.include = true;
+                await saveFilm();
+                render();
+              },
+            }],
+            items: (state.dubFiles || []).map((f) => ({ value: "file:" + f.path, label: f.name, sub: "Full-length file", icon: "🎧" })),
+          },
+          { label: "🎚 Timeline tracks", items: tracks },
+          { label: "Other", items: [{ value: "", label: "Not mapped", icon: "—" }] },
+        ];
+      },
+      onChange: async (v) => {
+        if (v.indexOf("file:") === 0) {
+          const f = state.dubFiles.find((x) => "file:" + x.path === v);
           c.source = { type: "file", path: f.path, name: f.name, offset: 0 };
         } else if (v.indexOf("track:") === 0) {
           c.source = { type: "track", index: parseInt(v.slice(6), 10) };
@@ -120,10 +137,10 @@
         if (c.source) c.include = true;
         await saveFilm();
         render();
-      })
-    );
+      },
+    });
 
-    const children = [el("div", { class: "label", text: "Dub audio" }), select];
+    const children = [el("div", { class: "label", text: "Dub audio" }), p.el];
     if (c.source && c.source.type === "file") {
       const offset = el("input", { type: "number", step: "0.1", value: String(c.source.offset || 0) });
       offset.addEventListener("change", () => {
@@ -135,20 +152,50 @@
     return el("div", { class: "map-box" }, children);
   }
 
+  // Voice picker with this character's locked voice and its designed options inside the dropdown.
+  function voiceBox(c) {
+    const p = A.ui.voicePicker({
+      value: c.voice_id || "",
+      title: "Voice for " + c.name,
+      placeholder: "Choose a voice…",
+      lockedId: () => (c.approved ? c.voice_id : ""),
+      groups: () =>
+        A.ui.voiceGroups({
+          lockedId: c.approved ? c.voice_id : "",
+          lockedFor: c.name,
+          onUnlock: async () => {
+            c.approved = false;
+            await saveFilm();
+            render();
+            log(c.name + " unlocked. Pick another voice and approve it to lock again.", "ok");
+          },
+          options: (c.options || []).map((o) => ({
+            letter: o.letter,
+            label: c.name + " " + o.letter + " · " + sourceLabel(c),
+            play: () => A.premiere.playPreview(c.name + " " + o.letter, o.bytes),
+          })),
+        }),
+      onChange: (v) =>
+        busy(null, async () => {
+          if (v.indexOf("option:") === 0) {
+            const opt = (c.options || []).find((o) => "option:" + o.letter === v);
+            await approveOption(c, opt);
+            return;
+          }
+          c.voice_id = v;
+          c.approved = false;
+          await saveFilm();
+          render();
+        }),
+    });
+    return p.el;
+  }
+
   function card(c) {
-    const film = state.film;
-    const still = c.best_still ? (film.stills || []).find((s) => s.index === c.best_still) : null;
-    const photo = el("div", { class: "cast-photo" });
-    if (still) {
-      const img = el("img", { alt: c.name });
-      A.ui.stillDataUrl(still.path).then((u) => (img.src = u)).catch(() => {});
-      photo.appendChild(img);
-    } else {
-      photo.appendChild(el("div", { class: "no-face", text: "🎧" }));
-    }
+    const photo = el("div", { class: "cast-photo" }, [A.ui.photo.photoBox(c)]);
     photo.appendChild(el("span", {
       class: "cast-status" + (c.approved ? " ok" : ""),
-      text: c.layer ? "✓ Converted" : c.approved ? (c.fromLibrary ? "✓ From library" : "✓ Approved") : "Needs a voice",
+      text: c.layer ? "✓ Converted" : c.approved ? "🔒 Locked" : "Needs a voice",
     }));
     const pick = el("input", { type: "checkbox" });
     pick.checked = !!c.include;
@@ -158,6 +205,17 @@
       render();
     });
     photo.appendChild(el("label", { class: "cast-pick" }, [pick, el("span", { text: "Include" })]));
+    const editPhoto = el("button", { class: "photo-edit", text: "✂ Photo", title: "Crop, zoom or change the photo" });
+    editPhoto.addEventListener("click", () =>
+      A.ui.photo.openEditor(c, async (photoData) => {
+        c.photo = photoData;
+        await saveFilm();
+        if (c.approved) await A.library.castSave(Object.assign({}, (await A.library.castFind(c.name)) || { name: c.name, voice_id: c.voice_id }, { photo: photoData }));
+        render();
+        log(c.name + "'s photo updated.", "ok");
+      })
+    );
+    photo.appendChild(editPhoto);
 
     const name = el("input", { type: "text", class: "cast-name", value: c.name });
     name.addEventListener("change", () => {
@@ -165,26 +223,19 @@
       saveFilm();
     });
 
-    const select = el("select", { class: "voice-select" });
-    A.ui.fillVoiceSelect(select, c.voice_id || "", { placeholder: "Choose a voice…" });
-    select.addEventListener("change", () => {
-      c.voice_id = select.value;
-      c.approved = false;
-      render();
-    });
-
-    const approveBtn = el("button", { class: "btn block good", text: "✓ Approve this voice" });
+    const approveBtn = el("button", { class: "btn block good", text: c.approved ? "🔒 Locked" : "🔒 Approve & lock voice" });
     approveBtn.disabled = !c.voice_id || c.approved;
     approveBtn.addEventListener("click", () => busy(approveBtn, () => approve(c, c.voice_id)));
 
     const optBtn = el("button", { class: "btn block", text: c.options ? "↻ 3 new voice options" : "✨ 3 voice options" });
+    optBtn.disabled = !!c.approved;
     optBtn.addEventListener("click", () =>
       busy(optBtn, async () => {
         log("Designing 3 voices for " + c.name + "…");
         const previews = await A.eleven.designVoice(c.voice_prompt, c.preview_line);
         c.options = previews.map((p, i) => Object.assign({ letter: "ABC"[i] || String(i + 1) }, p));
         render();
-        log(c.name + ": 3 voice options ready. ▶ to listen, ✓ to approve.", "ok");
+        log(c.name + ": 3 options added to the voice dropdown. ▶ to listen, pick one to approve.", "ok");
       })
     );
 
@@ -212,11 +263,11 @@
           name,
           el("div", { class: "cast-meta", text: [c.age_range, c.gender].filter(Boolean).join(" · ") }),
           el("div", { class: "cast-look", text: c.look, title: c.look + (c.notes ? "\n\n" + c.notes : "") }),
-          mapBox(c),
-          select,
+          mapPicker(c),
+          el("div", { class: "label-sm", text: "Voice" }),
+          voiceBox(c),
           approveBtn,
           optBtn,
-          el("div", {}, (c.options || []).map((o) => optionRow(c, o))),
           disclose,
           promptWrap,
           changeBtn,

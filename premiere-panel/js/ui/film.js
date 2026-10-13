@@ -200,14 +200,14 @@
     }
   }
 
-  $("stillsCount").value = A.settings.get("stillsCount");
-  $("stillsCount").addEventListener("change", () => A.settings.set("stillsCount", $("stillsCount").value));
+  A.ui.setSelect($("stillsCount"), A.settings.get("stillsCount"));
+  $("stillsCount").addEventListener("change", () => A.settings.set("stillsCount", A.ui.selectValue($("stillsCount"))));
 
   $("grabBtn").addEventListener("click", () =>
     busy($("grabBtn"), async () => {
       const seq = await A.premiere.getSequence();
       const length = (await seq.getEndTime()).seconds;
-      const choice = $("stillsCount").value;
+      const choice = A.ui.selectValue($("stillsCount"));
       const count = choice === "auto" ? Math.max(12, Math.min(80, Math.round(length / 2))) : parseInt(choice, 10);
       log("Grabbing " + count + " stills from " + seq.name + "…");
       const grabbed = await A.premiere.grabStills(count, $("stillsInOut").checked, (i, n) => {
@@ -232,6 +232,7 @@
       c.voice_id = saved ? saved.voice_id : "";
       c.approved = !!saved;
       c.fromLibrary = !!saved;
+      if (saved && saved.photo) c.photo = saved.photo;
       // Map the dub audio: the uploaded full file first, else the track holding their dub clips.
       const file = (state.dubFiles || []).find((f) => f.name === c.dub_file);
       const clip = clips.find((x) => (c.dub_clips || []).indexOf(x.name) !== -1);

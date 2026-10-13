@@ -226,12 +226,12 @@
         </div>
         <div class="filter-row">
           <div class="filter">
-            <label for="libMood">Mood</label>
-            <select id="libMood"></select>
+            <label>Mood</label>
+            <div id="libMood"></div>
           </div>
           <div class="filter" id="libTypeWrap">
-            <label for="libType">Type</label>
-            <select id="libType"></select>
+            <label>Type</label>
+            <div id="libType"></div>
           </div>
         </div>
         <div class="toolbar">
@@ -315,7 +315,7 @@
                 <button class="seg" data-value="sfx">Sound effect</button>
                 <button class="seg" data-value="music">Music</button>
               </div>
-              <div class="field" id="directVoiceField"><label for="directVoice">Voice</label><select id="directVoice" class="voice-select"></select></div>
+              <div class="field" id="directVoiceField"><label>Voice</label><div id="directVoice"></div></div>
               <div class="field"><label for="directText" id="directTextLabel">Text to speak</label><textarea id="directText" rows="4"></textarea></div>
               <div class="field hidden" id="directDurationField"><label for="directDuration">Length in seconds (0 = automatic)</label>
                 <input id="directDuration" type="number" min="0" step="0.5" value="0" /></div>
@@ -348,7 +348,7 @@
           </div>
           <div class="card">
             <div class="step-head"><span class="step-num">2</span><span class="step-title">New voice</span></div>
-            <select id="changeVoice" class="voice-select"></select>
+            <div id="changeVoice"></div>
             <label class="toggle"><input type="checkbox" id="changeDenoise" /><span>Remove background noise</span></label>
           </div>
           <button id="changeBtn" class="btn primary block">Change voice</button>
@@ -417,6 +417,8 @@
   <script src="js/dub.js"></script>
   <script src="js/mix.js"></script>
   <script src="js/ui/core.js"></script>
+  <script src="js/ui/picker.js"></script>
+  <script src="js/ui/crop.js"></script>
   <script src="js/ui/voices.js"></script>
   <script src="js/ui/film.js"></script>
   <script src="js/ui/cast.js"></script>

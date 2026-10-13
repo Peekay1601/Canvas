@@ -5,7 +5,7 @@ A dockable Premiere Pro panel for your own machine. It looks at your edit, maps 
 | Tab | What it does |
 |---|---|
 | 🎬 **Film** | Start here. ① Add your **dubbing files** (one full-length file per character), the **dubbing cue sheet** (CSV, TXT or PDF) and the script (backup reference). ② Grab stills from the timeline into their own folder. ③ **Analyse film**: Claude names the characters from the dub file names and cue sheet, matches them to faces in the stills, and builds the sound cue sheet. Characters can be found from dubbing alone, without stills. |
-| 🎭 **Cast** | One square card per character. Tick **Include** for the ones to process. **Dub audio**: map an uploaded dub file (with its start time), a whole Premiere track (A1, A2…), or upload a full file. Pick a voice, or press **3 voice options** to audition and ✓ approve one (named after the dub file). **Change voice for selected** converts each character's whole layer into **one continuous file**, in sync, on a free track, and can mute the original track. Only the parts with speech are sent to ElevenLabs. Approved voices are reused for the same character in any timeline. |
+| 🎭 **Cast** | One square card per character. Tick **Include** for the ones to process. **Dub audio**: map an uploaded dub file (with its start time), a whole Premiere track (A1, A2…), or upload a full file. Pick a voice from the voice dropdown (with ▶ play, search, and 🔒 locked character voices), or press **3 voice options**: the three designed options appear inside the dropdown. Picking or approving a voice **locks** it (🔒) until you unlock it. **✂ Photo** lets you choose the still (or upload a photo), zoom and drag to frame the face. **Change voice for selected** converts each character's whole layer into **one continuous file**, in sync, on a free track, and can mute the original track. Only the parts with speech are sent to ElevenLabs. Approved voices are reused for the same character in any timeline. |
 | 🔊 **Sound** | The cue sheet, split into Ambience, Foley, Human, Hard FX and Designed FX, each marked *seen*, *script* or *guess*, and tagged with a mood. Edit prompts, tick cues, **Generate**. Cues land at their times on per-type tracks without overwriting anything; long ambience beds are seamless loops laid end to end. The master sound design brief is editable here. |
 | 🎵 **Music** | Pick a mood, describe the moment, Claude writes the score prompt, ElevenLabs composes it. |
 | 🎚 **Mix** | One WAV per layer: **Dubbing**, **Music** and **Sound** (or 5 sound stems), and/or **everything mixed** into one file. Built from the panel's audio that is on the timeline now, so your edits count. Imported from 00:00 on empty tracks; optionally mutes the tracks that went in. |
@@ -66,7 +66,7 @@ In UXP Developer Tool choose ••• → **Package** for this plugin. That giv
 | `js/audio.js` | WAV decode/encode, speech detection, resampling, mixing, peak protection |
 | `js/dub.js` | Single-layer voice change per character (speech regions only, re-assembled in sync) |
 | `js/mix.js` | Stems and full mix from the panel's audio on the timeline |
-| `js/ui/*.js` | One file per tab, plus `core.js` (shared helpers) and `app.js` (startup) |
+| `js/ui/*.js` | One file per tab, plus `core.js` (shared helpers), `picker.js` (dropdown sheets; UXP's native select is unreliable with code-built options), `crop.js` (square photo crops and editor) and `app.js` (startup) |
 
 Notes:
 

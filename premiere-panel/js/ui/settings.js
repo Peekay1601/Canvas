@@ -12,7 +12,7 @@
   async function load() {
     $("claudeModel").value = A.settings.get("claudeModel");
     $("ttsModel").value = A.settings.get("ttsModel");
-    $("outputFormat").value = A.settings.get("outputFormat");
+    A.ui.setSelect($("outputFormat"), A.settings.get("outputFormat"));
     $("binName").value = A.settings.get("binName");
     $("elevenKey").placeholder = (await A.settings.getKey("elevenlabs")) ? "Saved · type to replace" : "xi-…";
     $("claudeKey").placeholder = (await A.settings.getKey("claude")) ? "Saved · type to replace" : "sk-ant-…";
@@ -40,7 +40,7 @@
       $("claudeKey").value = "";
       A.settings.set("claudeModel", $("claudeModel").value.trim());
       A.settings.set("ttsModel", $("ttsModel").value.trim());
-      A.settings.set("outputFormat", $("outputFormat").value);
+      A.settings.set("outputFormat", A.ui.selectValue($("outputFormat")));
       A.settings.set("binName", $("binName").value.trim());
       await load();
       log("Settings saved.", "ok");

@@ -11,6 +11,10 @@
 
   // =============== quick create ===============
   let currentPlan = null;
+  const directVoice = A.ui.voicePicker({ title: "Voice for the voiceover" });
+  $("directVoice").appendChild(directVoice.el);
+  const changeVoice = A.ui.voicePicker({ title: "Change into which voice?" });
+  $("changeVoice").appendChild(changeVoice.el);
 
   function updateGenerateBox() {
     const mode = createMode();
@@ -58,12 +62,10 @@
       const text = el("textarea", { rows: "3", value: item.text, oninput: (e) => (item.text = e.target.value) });
       let left;
       if (item.type === "speech") {
-        const sel = el("select", { class: "voice-select" });
-        A.ui.fillVoiceSelect(sel, item.voice_id);
         // Falls back to the default voice if Claude's pick isn't in the list.
-        if (state.voices.length) item.voice_id = sel.value;
-        sel.addEventListener("change", () => (item.voice_id = sel.value));
-        left = field("Voice", sel);
+        if (!state.voices.some((v) => v.voice_id === item.voice_id)) item.voice_id = A.ui.defaultVoiceId();
+        const p = A.ui.voicePicker({ value: item.voice_id, title: "Voice for “" + item.name + "”", onChange: (v) => (item.voice_id = v) });
+        left = field("Voice", p.el);
       } else {
         left = field("Seconds (0 = auto)", numberInput(item.duration_seconds, "0.5", (v) => (item.duration_seconds = v)));
       }
@@ -160,7 +162,7 @@
         type,
         name: (type === "speech" ? "VO " : type + " ") + text.slice(0, 24),
         text,
-        voice_id: type === "speech" ? $("directVoice").value : "",
+        voice_id: type === "speech" ? directVoice.value : "",
         duration_seconds: type === "speech" ? 0 : parseFloat($("directDuration").value) || 0,
         start_offset_seconds: 0,
       }], place, firstTrack);
@@ -205,7 +207,7 @@
 
   $("changeBtn").addEventListener("click", () =>
     busy($("changeBtn"), async () => {
-      const voiceId = $("changeVoice").value;
+      const voiceId = changeVoice.value;
       if (!voiceId) throw new Error("Pick the voice to change into.");
       const denoise = $("changeDenoise").checked;
       const project = await A.premiere.getProject();

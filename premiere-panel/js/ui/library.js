@@ -13,10 +13,31 @@
   ];
   const typeLabel = (v) => (TYPES.find((t) => t.value === v) || { label: v || "Other" }).label;
   let items = [];
+  let moodOptions = [];
+  let typeOptions = [];
+
+  const moodPicker = A.ui.picker({
+    value: "all",
+    title: "Mood",
+    search: false,
+    labelFor: (v) => (moodOptions.find((o) => o.value === v) || { label: "All moods" }).label,
+    getGroups: () => [{ label: "Mood", items: moodOptions.map((o) => ({ value: o.value, label: o.label, icon: o.value === "all" ? "◎" : "●" })) }],
+    onChange: () => render(),
+  });
+  $("libMood").appendChild(moodPicker.el);
+  const typePicker = A.ui.picker({
+    value: "all",
+    title: "Sound type",
+    search: false,
+    labelFor: (v) => (typeOptions.find((o) => o.value === v) || { label: "All types" }).label,
+    getGroups: () => [{ label: "Type", items: typeOptions.map((o) => ({ value: o.value, label: o.label, icon: o.value === "all" ? "◎" : "●" })) }],
+    onChange: () => render(),
+  });
+  $("libType").appendChild(typePicker.el);
 
   const kind = A.ui.segmented("libKind", () => {
-    $("libMood").value = "all";
-    $("libType").value = "all";
+    moodPicker.setValue("all");
+    typePicker.setValue("all");
     render();
   });
 
@@ -33,11 +54,11 @@
     return it.mood || "Other";
   }
 
-  function fillSelect(select, options, keep) {
-    const prev = keep ? select.value : "all";
-    select.innerHTML = "";
-    options.forEach((o) => select.appendChild(el("option", { value: o.value, text: o.label })));
-    select.value = options.some((o) => o.value === prev) ? prev : "all";
+  // Updates a picker's options, falling back to "all" when the current choice is gone.
+  function fillPicker(picker, options, setOptions) {
+    setOptions(options);
+    if (!options.some((o) => o.value === picker.value)) picker.setValue("all");
+    else picker.refresh();
   }
 
   function itemCard(it) {
@@ -85,17 +106,17 @@
 
     // Mood dropdown: every mood that has something, with counts.
     const moods = A.util.MOODS.filter((m) => ofKind.some((it) => moodOf(it) === m));
-    fillSelect($("libMood"), [{ value: "all", label: "All moods (" + ofKind.length + ")" }].concat(
+    fillPicker(moodPicker, [{ value: "all", label: "All moods (" + ofKind.length + ")" }].concat(
       moods.map((m) => ({ value: m, label: m + " (" + ofKind.filter((it) => moodOf(it) === m).length + ")" }))
-    ), true);
+    ), (o) => (moodOptions = o));
     if (k === "sound") {
-      fillSelect($("libType"), [{ value: "all", label: "All types" }].concat(
+      fillPicker(typePicker, [{ value: "all", label: "All types (" + ofKind.length + ")" }].concat(
         TYPES.filter((t) => ofKind.some((it) => it.category === t.value)).map((t) => ({ value: t.value, label: t.label + " (" + ofKind.filter((it) => it.category === t.value).length + ")" }))
-      ), true);
+      ), (o) => (typeOptions = o));
     }
 
-    const mood = $("libMood").value;
-    const type = k === "sound" ? $("libType").value : "all";
+    const mood = moodPicker.value;
+    const type = k === "sound" ? typePicker.value : "all";
     const q = $("libSearch").value.trim().toLowerCase();
     const shown = ofKind.filter((it) =>
       (mood === "all" || moodOf(it) === mood) &&
@@ -122,8 +143,6 @@
     });
   }
 
-  $("libMood").addEventListener("change", render);
-  $("libType").addEventListener("change", render);
   $("libSearch").addEventListener("input", render);
   $("libRefreshBtn").addEventListener("click", () => busy($("libRefreshBtn"), load));
   on("library", load);
