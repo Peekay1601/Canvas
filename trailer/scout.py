@@ -15,17 +15,21 @@ import os
 import re
 import subprocess
 
+import ffmpeg_bin
+
+FFMPEG, FFPROBE = ffmpeg_bin.find()
+
 COLS, ROWS, THUMB_W = 6, 5, 320
 
 
 def duration(path):
-    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+    out = subprocess.run([FFPROBE, "-v", "error", "-show_entries", "format=duration",
                           "-of", "csv=p=0", path], capture_output=True, text=True, check=True)
     return float(out.stdout)
 
 
 def detect_scenes(path, threshold):
-    proc = subprocess.run(["ffmpeg", "-hide_banner", "-i", path, "-an", "-vf",
+    proc = subprocess.run([FFMPEG, "-hide_banner", "-i", path, "-an", "-vf",
                            f"select='gt(scene,{threshold})',metadata=print",
                            "-f", "null", "-"], capture_output=True, text=True)
     times, scores = [0.0], [1.0]
@@ -77,7 +81,7 @@ def main():
             graph = ";".join(labels) + ";" + "".join(f"[t{k}]" for k in range(n))
             graph += f"xstack=inputs={n}:layout={layout}:fill=black" if n > 1 else "null"
             out = os.path.join(args.out, f"{name}_sheet_{sheet // per + 1:02d}.jpg")
-            subprocess.run(["ffmpeg", "-y", "-loglevel", "error"] + inputs +
+            subprocess.run([FFMPEG, "-y", "-loglevel", "error"] + inputs +
                            ["-filter_complex", graph, "-frames:v", "1", "-q:v", "3", out], check=True)
         print(f"{name}: {len(times)} shots, {total:.0f}s")
 

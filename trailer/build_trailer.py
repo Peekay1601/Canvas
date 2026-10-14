@@ -36,6 +36,10 @@ import sys
 import tempfile
 import textwrap
 
+import ffmpeg_bin
+
+FFMPEG, _ = ffmpeg_bin.find()
+
 W, H, FPS = 1920, 1080, 24
 SCOPE_H = 804  # 2.39:1 letterbox inside 1920x1080
 VERTICAL = False
@@ -68,6 +72,8 @@ def find_font():
 
 
 def run(cmd):
+    if cmd[0] == "ffmpeg":
+        cmd = [FFMPEG] + cmd[1:]
     print(" ".join(f'"{c}"' if " " in c else c for c in cmd))
     subprocess.run(cmd, check=True)
 

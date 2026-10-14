@@ -17,7 +17,7 @@
 | 58–60s | fade | Title card |
 
 ## Build the real trailer (on the Mac with the footage)
-The script needs `ffmpeg` (`brew install ffmpeg`).
+The scripts need an ffmpeg with the `drawtext` filter: `brew install ffmpeg-full` (Homebrew's plain `ffmpeg` lacks it). They find `ffmpeg-full` automatically.
 ```
 FOOTAGE="/Users/peekay/Downloads/THE BIG BEAR STUDIOS/projects/MahishasuraMardini_V2/EXPORTS/FINAL EXPORTS"
 EXPORTS="/Users/peekay/Downloads/THE BIG BEAR STUDIOS/projects/MahishasuraMardini_V2/EXPORTS"
