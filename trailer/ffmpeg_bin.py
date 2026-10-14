@@ -28,3 +28,16 @@ def find():
             return path, probe if os.path.exists(probe) else "ffprobe"
     sys.exit("No ffmpeg with the drawtext filter found. On a Mac run:  brew install ffmpeg-full\n"
              "(or point FFMPEG=/path/to/ffmpeg at one that has it)")
+
+
+NOISE = ("Referenced QT chapter track not found",)
+
+
+def run(cmd):
+    """Run ffmpeg, hiding harmless .mov chapter-track warnings but keeping real errors."""
+    proc = subprocess.run(cmd, stderr=subprocess.PIPE, text=True)
+    for line in proc.stderr.splitlines():
+        if not any(n in line for n in NOISE):
+            print(line, file=sys.stderr)
+    if proc.returncode:
+        raise subprocess.CalledProcessError(proc.returncode, cmd)

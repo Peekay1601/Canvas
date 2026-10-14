@@ -81,8 +81,8 @@ def main():
             graph = ";".join(labels) + ";" + "".join(f"[t{k}]" for k in range(n))
             graph += f"xstack=inputs={n}:layout={layout}:fill=black" if n > 1 else "null"
             out = os.path.join(args.out, f"{name}_sheet_{sheet // per + 1:02d}.jpg")
-            subprocess.run([FFMPEG, "-y", "-loglevel", "error"] + inputs +
-                           ["-filter_complex", graph, "-frames:v", "1", "-q:v", "3", out], check=True)
+            ffmpeg_bin.run([FFMPEG, "-y", "-loglevel", "error"] + inputs +
+                           ["-filter_complex", graph, "-frames:v", "1", "-q:v", "3", out])
         print(f"{name}: {len(times)} shots, {total:.0f}s")
 
 

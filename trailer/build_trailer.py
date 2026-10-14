@@ -75,7 +75,7 @@ def run(cmd):
     if cmd[0] == "ffmpeg":
         cmd = [FFMPEG] + cmd[1:]
     print(" ".join(f'"{c}"' if " " in c else c for c in cmd))
-    subprocess.run(cmd, check=True)
+    ffmpeg_bin.run(cmd)
 
 
 def letterbox_vf():
