@@ -17,11 +17,16 @@
 | 58–60s | fade | Title card |
 
 ## Build the real trailer (on the Mac with the footage)
-1. In `shotlist.csv`, set `file` (filename inside FINAL EXPORTS) and `src_in` (source timecode) for each `clip` row. The `note` column describes the shot from the script. Leave `start` alone, because those values are the beat-synced cut points.
-2. Run:
+The script needs `ffmpeg` (`brew install ffmpeg`).
 ```
-python3 build_trailer.py \
-  --footage "/Users/peekay/Downloads/THE BIG BEAR STUDIOS/projects/MahishasuraMardini_V2/EXPORTS/FINAL EXPORTS" \
-  --music trailer_music.mp3 --out Mahishasura_Mardini_Trailer_60s.mp4
+FOOTAGE="/Users/peekay/Downloads/THE BIG BEAR STUDIOS/projects/MahishasuraMardini_V2/EXPORTS/FINAL EXPORTS"
+EXPORTS="/Users/peekay/Downloads/THE BIG BEAR STUDIOS/projects/MahishasuraMardini_V2/EXPORTS"
 ```
-The script needs `ffmpeg` (`brew install ffmpeg`). `speed` 0.5 or 0.75 gives slow-mo for elevation shots. Dialogue and SFX lines are listed in the notes. Lay them in your NLE after the build.
+1. **Scout the episodes.** `python3 scout.py --footage "$FOOTAGE" --out scout` writes `scout/EPxx_scenes.csv`, which has every detected shot with its start, end and length. It also writes `scout/EPxx_sheet_NN.jpg`, contact sheets that show one frame per shot with its start timecode burned in. Use `--threshold 0.2` if it misses soft cuts.
+2. **Pick the shots.** In `shotlist.csv`, set `file` and `src_in` for each `clip` row from the sheets. The `note` column describes the shot. Leave `start` alone, because those are the beat-synced cut points. Keep `speed` 0.5 or 0.75 on hero/money shots for slow-mo. With slow-mo, the shot uses `duration × speed` seconds of source.
+3. **Pick the sounds.** In `audio_cues.csv`, set `file` and `src_in` for each dialogue or SFX line. The sound comes from the episode's own audio. Rows without them are skipped. `duck_db` dips the music under the line, and `gain_db` sets its level.
+4. **Render** exactly 60s into EXPORTS:
+```
+python3 build_trailer.py --footage "$FOOTAGE" --music trailer_music.mp3 \
+  --cues audio_cues.csv --out "$EXPORTS/Mahishasura_Mardini_Trailer_60s.mp4"
+```
