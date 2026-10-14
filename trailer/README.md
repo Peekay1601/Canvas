@@ -30,3 +30,4 @@ EXPORTS="/Users/peekay/Downloads/THE BIG BEAR STUDIOS/projects/MahishasuraMardin
 python3 build_trailer.py --footage "$FOOTAGE" --music trailer_music.mp3 \
   --cues audio_cues.csv --out "$EXPORTS/Mahishasura_Mardini_Trailer_60s.mp4"
 ```
+For vertical (9:16) episodes, add `--vertical` to render 1080x1920 without the letterbox.

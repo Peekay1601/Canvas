@@ -38,6 +38,7 @@ import textwrap
 
 W, H, FPS = 1920, 1080, 24
 SCOPE_H = 804  # 2.39:1 letterbox inside 1920x1080
+VERTICAL = False
 
 
 def tc(value):
@@ -72,6 +73,8 @@ def run(cmd):
 
 
 def letterbox_vf():
+    if VERTICAL:
+        return f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={FPS},format=yuv420p,setsar=1"
     return (
         f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
         f"crop={W}:{SCOPE_H},pad={W}:{H}:0:{(H - SCOPE_H) // 2}:black,"
@@ -91,7 +94,7 @@ def render_segment(row, dur, footage, font, out, animatic=False):
         if kind == "card":
             text, colour, size = row["text"].replace("\\n", "\n"), "0xE8C77A", 64
         else:
-            text, colour, size = textwrap.fill(row["note"], 48), "0x9FB7D9", 40
+            text, colour, size = textwrap.fill(row["note"], 26 if VERTICAL else 48), "0x9FB7D9", 40
         text = text.replace("'", "’").replace(":", "\\:").replace("%", "\\%")
         fade = min(0.35, dur / 3) if kind == "card" else 0.01
         draw = (f"drawtext=text='{text}':fontcolor={colour}:fontsize={size}:line_spacing=18:"
@@ -138,10 +141,15 @@ def main():
     ap.add_argument("--music", required=True)
     ap.add_argument("--shotlist", default="shotlist.csv")
     ap.add_argument("--out", default="Mahishasura_Mardini_Trailer_60s.mp4")
+    ap.add_argument("--vertical", action="store_true",
+                    help="render 1080x1920 (9:16, no letterbox) for vertical footage")
     ap.add_argument("--cues", help="audio_cues.csv with dialogue/SFX to mix over the music")
     ap.add_argument("--animatic", action="store_true",
                     help="render clip rows as text slates (timing preview, no footage needed)")
     args = ap.parse_args()
+    if args.vertical:
+        global W, H, VERTICAL
+        W, H, VERTICAL = 1080, 1920, True
 
     with open(args.shotlist, newline="") as f:
         rows = [r for r in csv.DictReader(f) if r["start"].strip() and not r["start"].startswith("#")]
