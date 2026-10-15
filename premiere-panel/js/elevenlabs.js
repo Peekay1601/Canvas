@@ -147,16 +147,13 @@
     return out;
   }
 
-  // Raw PCM carries no channel count. When the requested length is known, the byte count settles it;
-  // otherwise compare sample steps: in interleaved stereo the L->R step inside a frame differs
-  // systematically from the R->next-L step across frames, in mono both are the same.
-  function pcmChannels(buffer, sampleRate, expectedSeconds) {
+  // Raw PCM carries no channel count. Interleaved stereo shows in the samples themselves: each
+  // sample is far closer to the one two steps on (same channel) than to its neighbour (other
+  // channel), or the step inside a frame (L->R) differs from the step across frames (R->next L).
+  // The requested length is a second witness; music defaults to stereo when nothing is decisive.
+  function pcmChannels(buffer, sampleRate, expectedSeconds, preferStereo) {
     const n = Math.floor(buffer.byteLength / 2);
     if (n % 2) return 1;
-    if (expectedSeconds > 0) {
-      const asMono = n / sampleRate;
-      return Math.abs(asMono / 2 - expectedSeconds) < Math.abs(asMono - expectedSeconds) ? 2 : 1;
-    }
     const v = new DataView(buffer);
     let within = 0, across = 0, frameStep = 0;
     for (let i = 0; i + 2 < n; i += 2) {
@@ -165,9 +162,16 @@
       across += (c - b) * (c - b);
       frameStep += (c - a) * (c - a);
     }
-    if (!within && !across) return 1;
-    const lo = Math.min(within, across), hi = Math.max(within, across);
-    return lo < hi * 0.6 || within > frameStep * 1.5 ? 2 : 1;
+    if (within || across) {
+      const lo = Math.min(within, across), hi = Math.max(within, across);
+      if (lo < hi * 0.6 || within > frameStep * 1.5) return 2;
+      if (lo > hi * 0.9 && within < frameStep) return 1;
+    }
+    if (expectedSeconds > 0) {
+      const asMono = n / sampleRate;
+      return Math.abs(asMono / 2 - expectedSeconds) < Math.abs(asMono - expectedSeconds) ? 2 : 1;
+    }
+    return preferStereo ? 2 : 1;
   }
 
   async function generateRaw(item) {
@@ -185,7 +189,7 @@
     const out = await generateRaw(item);
     if (!out.format.startsWith("pcm_")) return out.buffer;
     const rate = rateOf(out.format);
-    const channels = item.type === "speech" ? 1 : pcmChannels(out.buffer, rate, item.duration_seconds);
+    const channels = item.type === "speech" ? 1 : pcmChannels(out.buffer, rate, item.duration_seconds, item.type === "music");
     return pcmToWav(out.buffer, rate, channels);
   }
 
