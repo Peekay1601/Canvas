@@ -129,19 +129,45 @@
     });
   }
 
-  // pcm_* formats are raw 16-bit mono little-endian samples; wrap them in a WAV header.
-  function pcmToWav(buffer, sampleRate) {
-    const dataLen = buffer.byteLength;
+  // pcm_* formats are raw 16-bit little-endian samples with no header; wrap them in a WAV header.
+  // Speech is mono, but music (and some sound effects) come back as interleaved stereo, so the
+  // channel count must be right or Premiere plays the file at half speed and garbled.
+  function pcmToWav(buffer, sampleRate, channels) {
+    const ch = channels || 1;
+    const dataLen = buffer.byteLength - (buffer.byteLength % (2 * ch));
     const out = new ArrayBuffer(44 + dataLen);
     const v = new DataView(out);
     const str = (off, s) => { for (let i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i)); };
     str(0, "RIFF"); v.setUint32(4, 36 + dataLen, true); str(8, "WAVE");
-    str(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
-    v.setUint32(24, sampleRate, true); v.setUint32(28, sampleRate * 2, true);
-    v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    str(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, ch, true);
+    v.setUint32(24, sampleRate, true); v.setUint32(28, sampleRate * 2 * ch, true);
+    v.setUint16(32, 2 * ch, true); v.setUint16(34, 16, true);
     str(36, "data"); v.setUint32(40, dataLen, true);
-    new Uint8Array(out, 44).set(new Uint8Array(buffer));
+    new Uint8Array(out, 44).set(new Uint8Array(buffer, 0, dataLen));
     return out;
+  }
+
+  // Raw PCM carries no channel count. When the requested length is known, the byte count settles it;
+  // otherwise compare sample steps: in interleaved stereo the L->R step inside a frame differs
+  // systematically from the R->next-L step across frames, in mono both are the same.
+  function pcmChannels(buffer, sampleRate, expectedSeconds) {
+    const n = Math.floor(buffer.byteLength / 2);
+    if (n % 2) return 1;
+    if (expectedSeconds > 0) {
+      const asMono = n / sampleRate;
+      return Math.abs(asMono / 2 - expectedSeconds) < Math.abs(asMono - expectedSeconds) ? 2 : 1;
+    }
+    const v = new DataView(buffer);
+    let within = 0, across = 0, frameStep = 0;
+    for (let i = 0; i + 2 < n; i += 2) {
+      const a = v.getInt16(i * 2, true), b = v.getInt16(i * 2 + 2, true), c = v.getInt16(i * 2 + 4, true);
+      within += (b - a) * (b - a);
+      across += (c - b) * (c - b);
+      frameStep += (c - a) * (c - a);
+    }
+    if (!within && !across) return 1;
+    const lo = Math.min(within, across), hi = Math.max(within, across);
+    return lo < hi * 0.6 || within > frameStep * 1.5 ? 2 : 1;
   }
 
   async function generateRaw(item) {
@@ -157,7 +183,10 @@
   // Generate one plan item; returns bytes ready to write to a .mp3 / .wav file (see fileExtension).
   async function generate(item) {
     const out = await generateRaw(item);
-    return out.format.startsWith("pcm_") ? pcmToWav(out.buffer, rateOf(out.format)) : out.buffer;
+    if (!out.format.startsWith("pcm_")) return out.buffer;
+    const rate = rateOf(out.format);
+    const channels = item.type === "speech" ? 1 : pcmChannels(out.buffer, rate, item.duration_seconds);
+    return pcmToWav(out.buffer, rate, channels);
   }
 
   // ----- voices: clone and design --------------------------------------
@@ -294,7 +323,7 @@
       if (!out.format.startsWith("pcm_")) throw new Error("Expected WAV audio from the voice changer.");
       return { samples: window.AIA.audio.pcm16ToFloat(out.buffer), sampleRate: rateOf(out.format) };
     }
-    return out.format.startsWith("pcm_") ? pcmToWav(out.buffer, rateOf(out.format)) : out.buffer;
+    return out.format.startsWith("pcm_") ? pcmToWav(out.buffer, rateOf(out.format), 1) : out.buffer;
   }
 
   function fileExtension() {

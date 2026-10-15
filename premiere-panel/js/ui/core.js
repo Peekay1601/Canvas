@@ -286,6 +286,8 @@
 
   // Rough length of generated audio from its byte size.
   function estimateSeconds(bytes) {
+    const wav = A.audio.parseWav(bytes);
+    if (wav) return wav.dataBytes / (wav.sampleRate * wav.blockAlign);
     const fmt = A.settings.get("outputFormat");
     if (fmt.startsWith("pcm_")) return (bytes.byteLength - 44) / ((parseInt(fmt.split("_")[1], 10) || 44100) * 2);
     const kbps = parseInt(fmt.split("_")[2], 10) || 128;
