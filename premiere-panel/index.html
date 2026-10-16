@@ -255,14 +255,29 @@
         <div id="voiceList"></div>
 
         <div class="card collapsible">
-          <button class="coll-head"><span>🎤 Clone my voice</span><span class="chev">▾</span></button>
+          <button class="coll-head"><span>➕ Add voices you like</span><span class="chev">▾</span></button>
           <div class="coll-body hidden">
-            <p class="hint">1–3 minutes of clean recordings of your own voice. One speaker, no music. Only clone voices you have the right to use.</p>
+            <p class="hint">Search the ElevenLabs Voice Library, ▶ to listen, then <b>Add</b> to put a voice in My voices.</p>
+            <div class="toolbar"><input id="libSearch" type="text" placeholder="e.g. deep narrator, Hindi, villain" class="grow" /></div>
+            <div class="toolbar">
+              <select id="libGender" class="grow"><option value="">Any gender</option><option value="male">Male</option><option value="female">Female</option><option value="neutral">Neutral</option></select>
+              <select id="libLanguage" class="grow"><option value="">Any language</option><option value="en">English</option><option value="hi">Hindi</option><option value="te">Telugu</option><option value="ta">Tamil</option><option value="kn">Kannada</option><option value="ml">Malayalam</option><option value="mr">Marathi</option><option value="bn">Bengali</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option><option value="ja">Japanese</option></select>
+            </div>
+            <button id="libSearchBtn" class="btn primary block">Search Voice Library</button>
+            <div id="libResults"></div>
+            <button id="libMoreBtn" class="btn block hidden">Show more</button>
+          </div>
+        </div>
+
+        <div class="card collapsible">
+          <button class="coll-head"><span>🎤 Upload recordings to make a voice</span><span class="chev">▾</span></button>
+          <div class="coll-body hidden">
+            <p class="hint">1–3 minutes of clean recordings (mp3, wav, m4a…). One speaker, no music. Only use voices you have the right to use.</p>
             <div class="field"><label for="cloneName">Voice name</label><input id="cloneName" type="text" placeholder="My voice" /></div>
             <button id="cloneFilesBtn" class="btn block">Choose recordings…</button>
             <p id="cloneFiles" class="hint">No files chosen</p>
             <label class="toggle"><input type="checkbox" id="cloneDenoise" /><span>Remove background noise</span></label>
-            <button id="cloneBtn" class="btn primary block">Create my voice</button>
+            <button id="cloneBtn" class="btn primary block">Upload and create voice</button>
           </div>
         </div>
 

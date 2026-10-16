@@ -93,6 +93,49 @@
     });
   }
 
+  // ----- add voices from the ElevenLabs Voice Library ---------------------------------
+  let libPage = 0;
+  async function searchLibrary(more) {
+    libPage = more ? libPage + 1 : 0;
+    const box = $("libResults");
+    if (!more) box.innerHTML = "";
+    const out = await A.eleven.searchSharedVoices({
+      page: libPage,
+      search: $("libSearch").value.trim(),
+      gender: $("libGender").value,
+      language: $("libLanguage").value,
+    });
+    if (!more && !out.voices.length) box.appendChild(el("div", { class: "empty", text: "No voices found. Try other words or filters." }));
+    out.voices.forEach((v) => {
+      const play = el("button", { class: "btn tiny", text: "▶" });
+      play.disabled = !v.previewUrl;
+      play.addEventListener("click", () => busy(play, () => playVoiceSample(v)));
+      const have = state.voices.some((x) => x.voice_id === v.voice_id);
+      const add = el("button", { class: "btn tiny good", text: have ? "Added" : "+ Add" });
+      add.disabled = have;
+      add.addEventListener("click", () =>
+        busy(add, async () => {
+          await A.eleven.addSharedVoice(v.owner, v.voice_id, v.name);
+          await A.ui.refreshVoices();
+          add.textContent = "Added";
+          add.disabled = true;
+          log("“" + v.name + "” added to My voices. Pick it in any voice dropdown.", "ok");
+        })
+      );
+      box.appendChild(el("div", { class: "voice" }, [
+        el("div", { class: "voice-main" }, [
+          el("div", { class: "voice-name" }, [el("span", { text: v.name })]),
+          el("div", { class: "voice-desc", text: v.description || " " }),
+        ]),
+        el("div", { class: "voice-actions" }, [play, add]),
+      ]));
+    });
+    $("libMoreBtn").classList.toggle("hidden", !out.hasMore);
+  }
+  $("libSearchBtn").addEventListener("click", () => busy($("libSearchBtn"), () => searchLibrary(false)));
+  $("libSearch").addEventListener("keydown", (e) => { if (e.key === "Enter") busy($("libSearchBtn"), () => searchLibrary(false)); });
+  $("libMoreBtn").addEventListener("click", () => busy($("libMoreBtn"), () => searchLibrary(true)));
+
   // ----- clone --------------------------------------------------------------------
   let cloneFiles = [];
   $("cloneFilesBtn").addEventListener("click", () =>
@@ -107,7 +150,7 @@
     busy($("cloneBtn"), async () => {
       const name = $("cloneName").value.trim();
       if (!name) throw new Error("Give your voice a name.");
-      if (!cloneFiles.length) throw new Error("Choose at least one recording of your voice.");
+      if (!cloneFiles.length) throw new Error("Choose at least one recording.");
       const files = [];
       for (const f of cloneFiles) files.push({ name: f.name, data: await f.read({ format: uxp.storage.formats.binary }) });
       log("Uploading " + files.length + " recording(s) to ElevenLabs…");

@@ -85,6 +85,33 @@
     return voices;
   }
 
+  // ElevenLabs Voice Library (community voices). Returns { voices, hasMore }.
+  async function searchSharedVoices(opts) {
+    opts = opts || {};
+    const resp = await request("/v1/shared-voices", {
+      query: { page_size: 30, page: opts.page || 0, search: opts.search, gender: opts.gender, language: opts.language },
+    });
+    const data = await resp.json();
+    const voices = (data.voices || []).map((v) => ({
+      voice_id: v.voice_id,
+      owner: v.public_owner_id,
+      name: v.name,
+      previewUrl: v.preview_url || "",
+      description: [[v.gender, v.age, v.accent, v.language, v.descriptive, v.use_case].filter(Boolean).join(", "), v.description]
+        .filter(Boolean).join(" — "),
+    }));
+    return { voices, hasMore: !!data.has_more };
+  }
+
+  // Copies a Voice Library voice into the user's own voices; returns the new voice_id.
+  async function addSharedVoice(ownerId, voiceId, name) {
+    const resp = await request("/v1/voices/add/" + encodeURIComponent(ownerId) + "/" + encodeURIComponent(voiceId), {
+      method: "POST",
+      body: { new_name: name },
+    });
+    return (await resp.json()).voice_id;
+  }
+
   async function deleteVoice(voiceId) {
     await request("/v1/voices/" + encodeURIComponent(voiceId), { method: "DELETE" });
   }
@@ -335,7 +362,7 @@
   }
 
   window.AIA.eleven = {
-    listVoices, deleteVoice, downloadPreview, speakSample, generate, fileExtension,
+    listVoices, searchSharedVoices, addSharedVoice, deleteVoice, downloadPreview, speakSample, generate, fileExtension,
     cloneVoice, designVoice, saveDesignedVoice, changeVoice,
   };
 })();
