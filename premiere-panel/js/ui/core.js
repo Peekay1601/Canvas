@@ -173,11 +173,12 @@
         items: v ? [Object.assign(item(v, "🔒"), { disabled: false })] : [],
       });
     }
-    if (opts.options && opts.options.length) {
+    if ((opts.options && opts.options.length) || opts.onUpload) {
       groups.push({
-        label: "✨ New options" + (opts.lockedFor ? " for " + opts.lockedFor : ""),
-        note: "Designed from the character's age and look. Pick one to approve and save it.",
-        items: opts.options.map((o) => ({ value: "option:" + o.letter, label: o.label, sub: "Not saved yet", icon: o.letter, disabled: locked, play: o.play })),
+        label: "✨ Voice options" + (opts.lockedFor ? " for " + opts.lockedFor : ""),
+        note: (opts.options || []).length ? "Designed or uploaded for this character. Pick one to approve and save it." : "Upload a recording of a voice you like for this character.",
+        actions: opts.onUpload && !locked ? [{ text: "⬆ Upload voice option…", onClick: opts.onUpload }] : [],
+        items: (opts.options || []).map((o) => ({ value: "option:" + o.letter, label: o.label, sub: o.sub || "Not saved yet", icon: o.letter, disabled: locked, play: o.play })),
       });
     }
     // Voices approved for characters are locked to them; listed with the character name.

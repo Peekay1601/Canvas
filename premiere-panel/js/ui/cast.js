@@ -28,7 +28,10 @@
     const copy = Object.assign({}, film, {
       cast: (film.cast || []).map((c) => {
         const x = Object.assign({}, c);
-        delete x.options;
+        // Designed options only live in memory; uploaded ones are files on disk, so keep them.
+        const uploads = (c.options || []).filter((o) => o.uploaded).map((o) => ({ letter: o.letter, uploaded: true, path: o.path, name: o.name }));
+        if (uploads.length) x.options = uploads;
+        else delete x.options;
         return x;
       }),
     });
@@ -77,8 +80,33 @@
     log(c.name + " → one " + Math.round(r.seconds) + " s layer" + (r.track ? " on A" + r.track : " in the bin (no free track)") + ". " + Math.round(r.sentSeconds) + " s of speech converted.", "ok");
   }
 
-  // Turns a designed option (A/B/C) into a saved, approved, locked voice.
+  // Lets the user add their own recordings as voice options for a character.
+  async function uploadOptions(c) {
+    const picked = await uxp.storage.localFileSystem.getFileForOpening({ allowMultiple: true, types: ["mp3", "wav", "m4a", "aac", "flac", "ogg"] });
+    const files = picked ? (Array.isArray(picked) ? picked : [picked]) : [];
+    if (!files.length) return;
+    c.options = c.options || [];
+    files.forEach((f) => {
+      let n = 1;
+      while (c.options.some((o) => o.letter === "U" + n)) n++;
+      c.options.push({ letter: "U" + n, uploaded: true, path: f.nativePath, name: f.name });
+    });
+    await saveFilm();
+    render();
+    log(c.name + ": " + files.length + " uploaded option(s) added to the voice dropdown. ▶ to listen, pick one to approve.", "ok");
+  }
+
+  // Turns a designed option (A/B/C) or an uploaded one (U1, U2…) into a saved, approved, locked voice.
   async function approveOption(c, opt) {
+    if (opt.uploaded) {
+      const name = c.name + " · " + opt.name.replace(/\.[^.]+$/, "");
+      log("Making “" + name + "” from your recording…");
+      const data = await A.premiere.readFileBytes(opt.path);
+      const id = await A.eleven.cloneVoice(name, [{ name: opt.name, data }], $("castDenoise").checked);
+      await A.ui.refreshVoices();
+      await approve(c, id);
+      return;
+    }
     const name = c.name + " · " + sourceLabel(c);
     log("Saving " + name + " to your ElevenLabs voices…");
     const id = await A.eleven.saveDesignedVoice(name, c.voice_prompt, opt.generated_voice_id);
@@ -169,10 +197,12 @@
             render();
             log(c.name + " unlocked. Pick another voice and approve it to lock again.", "ok");
           },
+          onUpload: () => uploadOptions(c),
           options: (c.options || []).map((o) => ({
             letter: o.letter,
-            label: c.name + " " + o.letter + " · " + sourceLabel(c),
-            play: () => A.premiere.playPreview(c.name + " " + o.letter, o.bytes),
+            label: o.uploaded ? c.name + " " + o.letter + " · " + o.name : c.name + " " + o.letter + " · " + sourceLabel(c),
+            sub: o.uploaded ? "Uploaded · not saved yet" : null,
+            play: () => (o.uploaded ? A.premiere.playFile(o.path) : A.premiere.playPreview(c.name + " " + o.letter, o.bytes)),
           })),
         }),
       onChange: (v) =>
@@ -227,17 +257,22 @@
     approveBtn.disabled = !c.voice_id || c.approved;
     approveBtn.addEventListener("click", () => busy(approveBtn, () => approve(c, c.voice_id)));
 
-    const optBtn = el("button", { class: "btn block", text: c.options ? "↻ 3 new voice options" : "✨ 3 voice options" });
+    const optBtn = el("button", { class: "btn block", text: (c.options || []).some((o) => !o.uploaded) ? "↻ 3 new voice options" : "✨ 3 voice options" });
     optBtn.disabled = !!c.approved;
     optBtn.addEventListener("click", () =>
       busy(optBtn, async () => {
         log("Designing 3 voices for " + c.name + "…");
         const previews = await A.eleven.designVoice(c.voice_prompt, c.preview_line);
-        c.options = previews.map((p, i) => Object.assign({ letter: "ABC"[i] || String(i + 1) }, p));
+        const uploads = (c.options || []).filter((o) => o.uploaded);
+        c.options = previews.map((p, i) => Object.assign({ letter: "ABC"[i] || String(i + 1) }, p)).concat(uploads);
         render();
         log(c.name + ": 3 options added to the voice dropdown. ▶ to listen, pick one to approve.", "ok");
       })
     );
+
+    const uploadBtn = el("button", { class: "btn block", text: "⬆ Upload voice option" });
+    uploadBtn.disabled = !!c.approved;
+    uploadBtn.addEventListener("click", () => busy(uploadBtn, () => uploadOptions(c)));
 
     const promptWrap = el("div", { class: "hidden" }, [
       el("textarea", { class: "prompt-box", rows: "5", value: c.voice_prompt, oninput: (e) => (c.voice_prompt = e.target.value), onchange: saveFilm }),
@@ -268,6 +303,7 @@
           voiceBox(c),
           approveBtn,
           optBtn,
+          uploadBtn,
           disclose,
           promptWrap,
           changeBtn,
