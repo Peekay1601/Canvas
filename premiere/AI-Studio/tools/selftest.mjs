@@ -45,7 +45,7 @@ const ctx = {
 };
 ctx.window = ctx;
 vm.createContext(ctx);
-for (const f of ["src/platform.js", "src/services/http.js", "src/store.js", "src/pricing.js", "src/skills.generated.js", "src/services/claude.js", "src/services/byteplus.js", "src/services/higgsfield.js", "src/jobs.js", "src/docx.js", "src/crypto.js", "src/services/portraits.js", "src/queue.js", "src/references.js", "src/shots.js", "src/production.js", "src/uploads.js", "src/changes.js"]) {
+for (const f of ["src/platform.js", "src/services/http.js", "src/store.js", "src/pricing.js", "src/skills.generated.js", "src/services/claude.js", "src/services/byteplus.js", "src/services/higgsfield.js", "src/jobs.js", "src/docx.js", "src/crypto.js", "src/services/portraits.js", "src/queue.js", "src/references.js", "src/shots.js", "src/production.js", "src/uploads.js", "src/changes.js", "src/mcp.js"]) {
   vm.runInContext(readFileSync(join(root, f), "utf8"), ctx, { filename: f });
 }
 const S = ctx.Studio;
@@ -119,13 +119,48 @@ routes = [
 ];
 assert.equal(S.store.has("higgsfield"), true);
 assert.equal(await S.higgsfield.test(), true);
-same(calls.map((c) => c.url.split("/")[2] + " " + c.headers.Authorization), ["platform.higgsfield.ai Key id-123:sec-456", "api.higgsfield.ai Key id-123:sec-456"]);
+same(calls.map((c) => c.url.split("/")[2] + " " + (c.headers.Authorization || "hf " + c.headers["hf-api-key"] + "/" + c.headers["hf-secret"])), ["platform.higgsfield.ai Key id-123:sec-456", "platform.higgsfield.ai hf id-123/sec-456", "api.higgsfield.ai Key id-123:sec-456"]);
 assert.equal(S.store.settings.higgsfieldBaseUrl, "https://api.higgsfield.ai", "working address is kept");
 routes = [{ match: () => true, reply: () => [401, { detail: "Invalid credentials" }] }];
 await assert.rejects(S.higgsfield.test(), (e) => /didn't accept this key/.test(e.message) && /Invalid credentials/.test(e.detail));
 S.store.secrets.higgsfieldKey = "hk";
 S.store.secrets.higgsfieldSecret = "hs";
-console.log("ok  Higgsfield key check (combined key, address fallback, server's reason shown)");
+// The platform API's own headers (hf-api-key / hf-secret) are found and kept too.
+calls.length = 0;
+S.store.settings.higgsfieldBaseUrl = "https://platform.higgsfield.ai";
+routes = [{ match: (u, o) => u.startsWith("https://platform.higgsfield.ai") && o.headers["hf-api-key"] === "hk" && o.headers["hf-secret"] === "hs", reply: () => [200, { upload_url: "x", public_url: "y" }] }, { match: () => true, reply: () => [401, {}] }];
+assert.equal(await S.higgsfield.test(), true);
+assert.equal(S.store.settings.higgsfieldAuth, "hf");
+S.store.settings.higgsfieldAuth = "key";
+S.store.settings.higgsfieldBaseUrl = "https://api.higgsfield.ai";
+console.log("ok  Higgsfield key check (combined key, address + header-style fallback, server's reason shown)");
+
+// ---- Pasted keys are cleaned; checks cost nothing and explain wrong keys ----
+same(S.store.cleanKey(' ARK_API_KEY="ab12-cd34"\n'), "ab12-cd34");
+same(S.store.cleanKey("Bearer \u200bsk-ant-api03-xyz\u00a0"), "sk-ant-api03-xyz");
+same(S.store.cleanKey("a1b2-c3:SeCrEt"), "a1b2-c3:SeCrEt");
+calls.length = 0;
+S.store.secrets.anthropic = "sk-ant-api03-good";
+routes = [{ match: (u) => u.startsWith("https://api.anthropic.com/v1/models"), reply: () => [200, { data: [] }] }];
+assert.equal(await S.claude.test(), true);
+assert.ok(calls.every((c) => c.method === "GET"), "Claude check sends no prompt");
+routes = [{ match: () => true, reply: () => [401, { error: { message: "invalid x-api-key" } }] }];
+await assert.rejects(S.claude.test(), (e) => /didn't accept/.test(e.message) && /sk-ant-api03…good/.test(e.message));
+S.store.secrets.anthropic = "AKLTabc";
+await assert.rejects(S.claude.test(), (e) => /doesn't look like a Claude key/.test(e.message));
+const savedArk = S.store.secrets.ark;
+S.store.secrets.ark = "AKLTxyz123";
+await assert.rejects(S.byteplus.test(), (e) => /Access Key ID/.test(e.message));
+S.store.secrets.ark = "ark-key-1";
+calls.length = 0;
+S.store.settings.arkBaseUrl = "https://ark.ap-southeast.bytepluses.com/api/v3";
+routes = [{ match: (u) => u.startsWith("https://ark.cn-beijing.volces.com"), reply: () => [200, { items: [] }] }, { match: () => true, reply: () => [401, {}] }];
+assert.equal(await S.byteplus.test(), true);
+assert.equal(S.store.settings.arkBaseUrl, "https://ark.cn-beijing.volces.com/api/v3", "the region that takes the key is kept");
+S.store.settings.arkBaseUrl = "https://ark.ap-southeast.bytepluses.com/api/v3";
+S.store.secrets.ark = savedArk;
+S.store.secrets.anthropic = "sk-test";
+console.log("ok  Keys: pasted junk cleaned, free checks, wrong-key hints, BytePlus region fallback");
 
 // ---- Higgsfield nsfw ----
 routes = [
@@ -538,5 +573,176 @@ same(PR.listProjects().map((x) => x.id), [firstId]);
 PR.openProject(firstId);
 assert.equal(PR.project.title, "Monsoon Chai");
 console.log("ok  Projects list / reopen");
+
+{
+// ---- MCP tab: every connector tool, run on the panel's projects ----
+const M = S.mcp;
+same(M.TOOLS.map((t) => t.name), ["production_status", "get_skill", "production_options", "list_projects", "open_project", "set_project", "set_bible_section", "get_bible", "read_full_script", "split_script", "save_unit_script", "set_units", "list_units", "read_unit", "upsert_character", "upsert_location", "upsert_costume", "upsert_prop", "get_asset", "list_assets", "list_asset_files", "write_image_prompts", "sync_assets", "add_asset_image", "portrait_status", "test_portrait_connection", "register_portraits", "cleanup_portraits", "create_shots", "list_shots", "get_shot", "update_shot", "prepare_shot_prompt", "set_shot_prompt", "generate_shot", "check_shot", "review_shot", "queue_unit", "start_worker", "worker_status", "stop_worker", "unit_status", "export_unit", "generate_video", "check_generation"], "all 45 connector tools");
+same(M.PROMPTS.map((x) => x.name), ["start_project", "prepare_assets", "prepare_unit", "review_unit"]);
+assert.ok(M.TOOLS.every((t) => t.input_schema.type === "object" && t.description.length > 10));
+assert.ok((await M.runTool("get_skill", { name: "shotlist" })).includes("reference/MICRO_BEATS.md"), "skill lists its reference files");
+assert.match(await M.runTool("get_skill", { name: "shotlist", file: "MICRO_BEATS.md" }), /Micro-Beats/);
+await assert.rejects(M.runTool("get_skill", { name: "shotlist", file: "nope.md" }), /not part of shotlist/);
+const opts = await M.runTool("production_options", {});
+assert.equal(opts.looks.length, 8);
+assert.equal(opts.project_types["advertisement"], "shot");
+
+await M.runTool("open_project", { name: "Chai Ad", create: true });
+const set = await M.runTool("set_project", { type: "web series", ratio: "9:16", resolution: "480p", look: "documentary_vérité" });
+assert.equal(set.unit_kind, "episode");
+assert.equal(set.look, "Documentary vérité");
+await assert.rejects(M.runTool("set_project", { ratio: "5:4" }), /ratio must be one of/);
+// Load a text script the way the Load script button does, then split it at its headings.
+const script = "EPISODE 1\n" + "Ravi opens the tea stall in the rain. ".repeat(12) + "\nEpisode Two\n" + "Meera arrives with an umbrella and an order. ".repeat(12);
+const scriptName = "script-test.txt";
+await S.platform.keepFile(scriptName, new TextEncoder().encode(script).buffer);
+Object.assign(PR.project, { scriptFile: scriptName, scriptKind: "text", scriptName: "chai.txt" });
+const preview = await M.runTool("split_script", {});
+same(preview.units.map((u) => u.unit), ["EP01", "EP02"]);
+assert.equal(PR.project.units.length, 0, "preview saves nothing");
+const written = await M.runTool("split_script", { write: true });
+same(written.written, ["EP01", "EP02"]);
+assert.match(await M.runTool("read_unit", { unit: 2 }), /Meera arrives/);
+await assert.rejects(M.runTool("save_unit_script", { unit: "EP01", text: "x" }), /already has a script/);
+await M.runTool("set_units", { units: [{ number: 1, title: "The Stall", summary: "Ravi opens up." }] });
+await M.runTool("set_bible_section", { section: "camera", text: "Handheld, eye level." });
+assert.equal((await M.runTool("get_bible", {})).camera, "Handheld, eye level.");
+
+await M.runTool("upsert_character", { id: "ravi", name: "Ravi", description: "tea seller, 40s", voice_prompt: "Warm low voice, Telugu accent.", unit: 1 });
+await M.runTool("upsert_location", { id: "tea stall", description: "blue tarp, bulb light", unit: 1 });
+const sheet = await M.runTool("write_image_prompts", { unit: "EP01", items: [{ kind: "props", id: "KETTLE", prompt: "Brass kettle, product shot." }, { kind: "characters", id: "RAVI" }] });
+same(sheet.to_make, ["KETTLE"]);
+same(sheet.reused, ["RAVI"]);
+assert.match(sheet.text, /Nothing to generate/);
+assert.equal((await M.runTool("get_asset", { kind: "locations", id: "TEA_STALL" })).status, "needed");
+
+const made = await M.runTool("create_shots", { unit: "EP01", shots: [{ seq: 1, duration: 6, characters: ["RAVI"], location: "TEA_STALL", props: ["KETTLE"], action: "Ravi pours tea", dialogue: "RAVI: One chai?" }, { seq: 2, duration: 5, transition: "CONTINUATION", characters: ["RAVI"], action: "He hands it over" }] });
+same(made.saved, ["EP01_S001", "EP01_S002"]);
+await assert.rejects(M.runTool("create_shots", { unit: 1, shots: [{ seq: 1, duration: 5 }, { seq: 1, duration: 5 }] }), /Duplicate seq/);
+const brief = await M.runTool("prepare_shot_prompt", { shot_id: "EP01_S001" });
+same(brief.active_references.map((h) => h.handle), ["@image1", "@image2", "@image3"]);
+assert.equal(brief.characters[0].voice_prompt, "Warm low voice, Telugu accent.");
+const bad = await M.runTool("set_shot_prompt", { shot_id: "EP01_S001", prompt: "@image1 pours tea under @image4, same as before." });
+assert.equal(bad.saved, false);
+assert.match(bad.errors[0], /@image4/);
+const good = await M.runTool("set_shot_prompt", { shot_id: "EP01_S001", prompt: "@image1 pours tea from @image3 at @image2. Warm low voice, Telugu accent. He says: One chai?" });
+assert.equal(good.saved, true);
+same(good.warnings, []);
+const cont = await M.runTool("set_shot_prompt", { shot_id: "EP01_S002", prompt: "@image1 hands it over." });
+assert.match(cont.errors.join(" "), /approve EP01_S001 first/);
+const upd = await M.runTool("update_shot", { shot_id: "EP01_S001", fields: { camera: "slow push in" } });
+assert.equal(upd.prompt_cleared, false);
+await assert.rejects(M.runTool("update_shot", { shot_id: "EP01_S001", fields: { prompt: "x" } }), /Not editable/);
+assert.equal(M.spendNote("generate_shot", { shot_id: "EP01_S001" }).indexOf("Seedance video, 6 s"), 0, "spending tools say what they cost");
+assert.equal(M.spendNote("production_status", {}), "");
+
+// Lock references (plain images: no portrait key), then generate through the real shot code.
+delete S.store.secrets.byteplusAk;
+delete S.store.secrets.byteplusSk;
+for (const id of ["RAVI", "TEA_STALL", "KETTLE"]) {
+  const it = { id: "lib-" + id, kind: "image", src: "", remoteUrl: "https://tos.example/" + id + ".png", createdAt: Date.now(), prompt: id };
+  S.store.addToLibrary(it);
+  await M.runTool("add_asset_image", { kind: id === "RAVI" ? "characters" : id === "KETTLE" ? "props" : "locations", id, source: it.id });
+}
+assert.equal((await M.runTool("get_asset", { kind: "characters", id: "RAVI" })).status, "ready");
+n = 1;
+routes = [
+  { match: (u, o) => u.endsWith("/contents/generations/tasks") && o.method === "POST", reply: () => [200, { id: "mt" + n++ }] },
+  { match: (u) => /\/contents\/generations\/tasks\/mt\d+$/.test(u), reply: () => [200, { status: "succeeded", content: { video_url: "https://tos.example/take.mp4" } }] },
+  { match: (u) => u.startsWith("https://tos.example"), reply: () => [200, "BYTES"] },
+];
+const submitted = await M.runTool("generate_shot", { shot_id: "EP01_S001" });
+assert.equal(submitted.status, "submitted");
+for (let i = 0; i < 50 && (await M.runTool("check_shot", { shot_id: "EP01_S001" })).status !== "review"; i++) await new Promise((r) => setImmediate(r));
+const checked = await M.runTool("check_shot", { shot_id: "EP01_S001" });
+assert.equal(checked.status, "review");
+const vbody = calls.filter((c) => c.body && c.body.content && c.url.endsWith("/contents/generations/tasks")).pop().body;
+same(vbody.content.filter((x) => x.role === "reference_image").map((x) => x.image_url.url), ["https://tos.example/RAVI.png", "https://tos.example/TEA_STALL.png", "https://tos.example/KETTLE.png"]);
+assert.equal(vbody.ratio, "9:16");
+assert.equal(vbody.resolution, "480p", "the project's resolution is used");
+await M.runTool("review_shot", { shot_id: "EP01_S001", verdict: "approve" });
+assert.equal((await M.runTool("set_shot_prompt", { shot_id: "EP01_S002", prompt: "@image1 hands it over." })).saved, true, "continuation can be written once the shot before is approved");
+const st = await M.runTool("unit_status", { unit: "EP01" });
+assert.equal(st.by_status.approved, 1);
+const exp = await M.runTool("export_unit", { unit: "EP01" });
+assert.match(exp.edl, /EP01_S001/);
+const status = await M.runTool("production_status", {});
+assert.equal(status.units.length, 2);
+assert.ok(status.problems.some((x) => /Access Key/.test(x)), "says faces need the portrait key");
+console.log("ok  MCP tools: all 45 + 4 workflows, skills with reference files, options, split, assets, @image checks, generate, review, export");
+
+// ---- MCP tab: Claude drives the tools (tool use), and asks before spending ----
+ctx.document = { addEventListener: () => {}, querySelector: () => null, activeElement: null };
+vm.runInContext(readFileSync(join(root, "src/views/mcp.js"), "utf8"), ctx, { filename: "src/views/mcp.js" });
+const V = S.mcpView;
+const agentBodies = [];
+let step = 0;
+routes = [
+  {
+    match: (u) => u === "https://api.anthropic.com/v1/messages",
+    reply: (u, body) => {
+      agentBodies.push(JSON.parse(JSON.stringify(body)));
+      step++;
+      if (step === 1) return [200, { content: [{ type: "thinking", thinking: "", signature: "sig" }, { type: "text", text: "Checking." }, { type: "tool_use", id: "tu1", name: "production_status", input: {} }, { type: "tool_use", id: "tu2", name: "queue_unit", input: { unit: "EP01" } }], stop_reason: "tool_use", usage: { input_tokens: 10, output_tokens: 5 } }];
+      return [200, { content: [{ type: "text", text: "EP01 is ready." }], stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 5 } }];
+    },
+  },
+];
+const done = V.send("Check production status and queue EP01");
+for (let i = 0; i < 50 && !V.agent.confirm; i++) await new Promise((r) => setImmediate(r));
+assert.equal(V.agent.confirm.name, "queue_unit", "spending tool waits for approval");
+V.actions["mcp-deny"]();
+await done;
+const first = agentBodies[0];
+assert.equal(first.tools.length, 45);
+assert.equal(first.system[0].cache_control.type, "ephemeral");
+const second = agentBodies[1];
+assert.equal(second.messages[1].content[0].type, "thinking", "assistant content passed back unchanged");
+const results = second.messages[2].content;
+same(results.map((r) => r.tool_use_id), ["tu1", "tu2"], "all results in one user message");
+assert.ok(!results[0].is_error && /"problems"/.test(results[0].content));
+assert.ok(results[1].is_error && /declined/.test(results[1].content));
+assert.equal(V.agent.log.filter((x) => x.type === "claude").pop().text, "EP01 is ready.");
+console.log("ok  MCP tab: Claude tool-use loop (all tools sent, thinking kept, parallel results, approval before spending)");
+
+}
+// ---- Keychain: keys saved by older builds come back as UTF-16 bytes; a refusing keychain falls back ----
+{
+  for (const mode of ["utf16", "refuse"]) {
+    const kc = new Map();
+    const ls = new Map();
+    const uxpFake = {
+      storage: {
+        secureStorage: {
+          getItem: async (k) => (kc.has(k) ? kc.get(k) : null),
+          setItem: async (k, v) => {
+            if (mode === "refuse") throw new Error("keychain locked");
+            kc.set(k, v);
+          },
+          removeItem: async (k) => kc.delete(k),
+        },
+      },
+    };
+    const c2 = { console, TextEncoder, localStorage: { getItem: (k) => ls.get(k) ?? null, setItem: (k, v) => ls.set(k, v), removeItem: (k) => ls.delete(k) }, require: (m) => { if (m === "uxp") return uxpFake; throw new Error("no " + m); } };
+    c2.window = c2;
+    vm.createContext(c2);
+    vm.runInContext(readFileSync(join(root, "src/platform.js"), "utf8"), c2);
+    const PL = c2.Studio.platform;
+    if (mode === "utf16") {
+      // What a plain string came back as on some Premiere builds: a zero byte after every letter.
+      const key = "sk-ant-api03-Zx9";
+      const bytes = new Uint8Array(key.length * 2);
+      for (let i = 0; i < key.length; i++) bytes[i * 2] = key.charCodeAt(i);
+      kc.set("aistudio.secret.anthropic", bytes);
+      assert.equal(await PL.getSecret("anthropic"), key, "UTF-16 key read back intact");
+      assert.equal(await PL.setSecret("ark", "ark-ü-1"), "keychain");
+      assert.equal(await PL.getSecret("ark"), "ark-ü-1", "saved as UTF-8 bytes, read back intact");
+    } else {
+      assert.equal(await PL.setSecret("ark", "ark-2"), "panel", "falls back instead of throwing");
+      assert.equal(await PL.getSecret("ark"), "ark-2");
+    }
+  }
+  console.log("ok  Keychain: UTF-16 keys from older builds read correctly, UTF-8 round trip, refusing keychain falls back");
+}
 
 console.log("\nAll checks passed.");

@@ -105,17 +105,43 @@
     throw new ServiceError(NAME, "This video is taking unusually long. It may still finish on BytePlus.");
   }
 
-  /** Cheap key check: listing tasks costs nothing; a bad key comes back 401. */
+  // ModelArk keys only work in the region they were made in: BytePlus (Southeast Asia) or Volcengine (China).
+  const ARK_BASES = ["https://ark.ap-southeast.bytepluses.com/api/v3", "https://ark.cn-beijing.volces.com/api/v3"];
+
+  /**
+   * Cheap key check: listing tasks costs nothing; a bad key comes back 401. If the saved address refuses
+   * the key, the other region is tried and kept when it works.
+   */
   async function test() {
     const { base, key } = cfg();
-    let resp;
-    try {
-      resp = await fetch(base + "/contents/generations/tasks?page_size=1", { headers: headers(key) });
-    } catch (e) {
-      throw new ServiceError(NAME, "Couldn't reach BytePlus. Check your internet connection.");
+    const fp = Studio.store.fingerprint(key);
+    if (/^AK[A-Z]{2}/.test(key))
+      throw new ServiceError(NAME, "That's an Access Key ID (" + key.slice(0, 4) + "…), not a ModelArk API key. Put it under Character faces below, and paste the key from ModelArk → API keys here.", fp);
+    if (/^sk-ant-/.test(key)) throw new ServiceError(NAME, "That's a Claude key. Paste it in the Claude card, and the ModelArk API key here.", fp);
+    const bases = [base].concat(ARK_BASES.filter((b) => b !== base));
+    let last = null;
+    for (const b of bases) {
+      let resp;
+      try {
+        resp = await fetch(b + "/contents/generations/tasks?page_size=1", { headers: headers(key) });
+      } catch (e) {
+        last = last || { status: 0, text: String(e) };
+        continue;
+      }
+      const text = await resp.text();
+      if (resp.status !== 401 && resp.status !== 403) {
+        if (b !== base) Studio.store.saveSettings({ arkBaseUrl: b });
+        if (resp.ok || resp.status === 404 || resp.status === 400) return true;
+        throw new ServiceError(NAME, "BytePlus accepted the key but answered with an error (" + resp.status + ").", text.slice(0, 300));
+      }
+      last = { status: resp.status, text };
     }
-    if (resp.status === 401 || resp.status === 403) throw new ServiceError(NAME, "BytePlus didn't accept this key.");
-    return true;
+    if (!last || last.status === 0) throw new ServiceError(NAME, "Couldn't reach BytePlus. Check your internet connection.", last && last.text);
+    throw new ServiceError(
+      NAME,
+      "BytePlus didn't accept this key in either region. Copy it again from ModelArk → API keys (the key itself, not its name), and check it isn't disabled. Saved key: " + fp + ".",
+      "HTTP " + last.status + ": " + String(last.text || "").slice(0, 300)
+    );
   }
 
   Studio.byteplus = { generateImage, generateVideo, test, SEEDREAM_SIZES };

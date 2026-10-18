@@ -2992,3 +2992,263 @@ body.has-batch .chat-fab {
 .sheet-backdrop {
   z-index: 28;
 }
+
+/* ---------- MCP tab (Seedance Production connector) ---------- */
+
+.mcp-head .seg {
+  margin-top: 10px;
+}
+
+.mcp-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.mcp-title small {
+  color: var(--muted);
+  font-size: 11.5px;
+  margin-top: 2px;
+}
+
+.mcp-flows {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: -3px -3px 8px;
+}
+
+.mcp-flows .chip,
+.mcp-flows .select {
+  margin: 3px;
+}
+
+.mcp-unit {
+  width: auto;
+  max-width: 160px;
+}
+
+.mcp-log {
+  max-height: 420px;
+  min-height: 120px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.mcp-empty {
+  margin: 4px;
+}
+
+.mcp-row {
+  display: flex;
+  margin: 6px 0;
+  font-size: 12.5px;
+}
+
+.mcp-row.you {
+  justify-content: flex-end;
+}
+
+.mcp-bubble {
+  max-width: 92%;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  white-space: pre-wrap;
+  line-height: 1.45;
+  user-select: text;
+}
+
+.mcp-row.you .mcp-bubble {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.mcp-row.claude .mcp-bubble {
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.mcp-row.note {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.mcp-row.note.bad,
+.mcp-tool.bad summary i {
+  color: var(--bad);
+}
+
+.mcp-tool {
+  margin: 4px 0;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+
+.mcp-tool summary {
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mcp-tname {
+  color: var(--accent-strong);
+  font-weight: 700;
+  font-family: Menlo, Consolas, monospace;
+}
+
+.mcp-targs {
+  color: var(--muted);
+  font-family: Menlo, Consolas, monospace;
+}
+
+.mcp-pre {
+  margin: 6px 0 0;
+  padding: 8px;
+  max-height: 260px;
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-family: Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-2);
+  user-select: text;
+}
+
+.mcp-pre.small {
+  max-height: 120px;
+}
+
+.mcp-pre.tall {
+  max-height: 560px;
+}
+
+.mcp-pre.bad {
+  border-color: var(--bad);
+}
+
+.mcp-confirm {
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  margin-bottom: 8px;
+  background: rgba(245, 181, 68, 0.08);
+}
+
+.mcp-check {
+  display: flex;
+  align-items: center;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.mcp-check input {
+  margin-right: 6px;
+}
+
+.mcp-tool-card {
+  padding: 10px 12px;
+}
+
+.mcp-tool-head {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  padding: 0;
+  cursor: pointer;
+  font-size: 12.5px;
+}
+
+.mcp-tool-head b {
+  font-family: Menlo, Consolas, monospace;
+}
+
+.mcp-tool-head small {
+  display: block;
+  color: var(--muted);
+  font-size: 11.5px;
+  margin-top: 3px;
+  line-height: 1.4;
+}
+
+.mcp-tool-card:not(.open) .mcp-tool-head small {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mcp-params {
+  margin: 8px 0;
+  font-size: 11.5px;
+}
+
+.mcp-params div {
+  margin: 3px 0;
+}
+
+.mcp-params code,
+.mcp-kv code {
+  color: var(--accent-strong);
+}
+
+.mcp-params i {
+  color: var(--warn);
+  font-style: normal;
+  font-size: 10.5px;
+}
+
+.mono {
+  font-family: Menlo, Consolas, monospace;
+  font-size: 11.5px;
+}
+
+.mcp-kv {
+  display: flex;
+  font-size: 12px;
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
+.mcp-kv code {
+  flex: 0 0 34%;
+  margin-right: 8px;
+  word-break: break-word;
+}
+
+.mcp-kv span {
+  flex: 1;
+  color: var(--text-2);
+}
+
+.mcp-look {
+  margin: 6px 0;
+  font-size: 12px;
+}
+
+.mcp-look summary {
+  cursor: pointer;
+}
+
+.mcp-look summary small {
+  display: block;
+  color: var(--muted);
+  margin-left: 14px;
+}
+
+.key-fp {
+  font-family: Menlo, Consolas, monospace;
+  font-size: 11px;
+}

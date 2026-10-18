@@ -13,6 +13,7 @@ A panel inside Adobe Premiere Pro where you make pictures and videos with AI wit
 - **Higgsfield** makes pictures (Soul, Seedream) and turns them into video (DoP, Kling, Seedance).
 - **BytePlus ModelArk** makes pictures with **Seedream 4.5** and videos with **Seedance 2.5**.
 - Everything you make is saved on your computer and added to your Premiere project with one click.
+- **MCP tab: the whole Seedance Production connector inside Premiere.** All 45 connector tools, its 4 workflows (*Start project*, *Prepare assets*, *Prepare unit*, *Review unit*), every skill and reference file, and every option. Claude drives the tools for you, and asks before anything costs credits.
 
 | Upload a script | References (lock & upload) | Shots (review) | Batch |
 |---|---|---|---|
@@ -103,6 +104,17 @@ Tagged files move into their folder: `<project>/<episode>/Characters`, `…/Uplo
 - **Change with Claude** (✦ button on references, shot takes, Library and Create results, Uploads): say what should change in your own words, or tap a suggestion. You can read and edit Claude's new prompt before anything is made. For pictures on Seedream, the new one is made *from* the current picture with a CHANGE / PRESERVE EXACTLY prompt, so the rest stays the same; it's added as a new candidate you can lock. For a shot take, the note goes into the review: Claude patches the shot's prompt and a new take is made.
 - **Ask Claude** (button at the bottom right, or **?** on any character or shot): a chat for ideas that knows the project, the episode and whatever you opened it from, and can see the selected picture. Prompts it suggests come with **Use in Create**, **Use as image prompt** (characters, locations…) or **Use as video prompt** (shots).
 
+### MCP: the Seedance Production connector, inside Premiere
+The **MCP** tab runs the same tools, workflows and skills as the Claude Desktop connector, on the panel's own projects (so the Script, Assets and Shots views update as it works). No Python, no server, nothing else to install.
+
+- **Claude:** chat with Claude, which calls the connector's tools itself. The workflow buttons start the connector's four guided flows: **Start project** (read the script, decide series / film / ad, pick ratio, resolution and look, split it, write the bible), **Prepare assets** (Lira image prompts for a unit, then link the images), **Prepare unit** (Shotlist breakdown, then a CINEDANCE + Acting prompt for every shot) and **Review unit** (approve, or retry with notes and the prompt is patched). Before any tool that spends credits (`generate_shot`, `queue_unit`, `start_worker`, `generate_video`, `register_portraits`) or deletes portraits, it shows what it will cost and waits for **Approve**. Tick *Don't ask before spending credits* to skip that.
+- **Tools · 45:** every tool, with its arguments. Edit the JSON and press **Run** to use one by hand (tools that spend credits ask for a second press).
+- **Skills:** CINEDANCE, Shotlist Builder (with its 7 reference files and the HTML template), Acting System and Lira, exactly as Claude gets them from `get_skill`, plus the connector guide. Copy or save any of them.
+- **Options:** project types and how each is divided, aspect ratios, resolutions, the 8 looks (with the bible text each sets, and **Use for this project**), shot transitions, reference-video tags, models, and where each connector setting lives in the panel.
+- **Load script** loads a PDF, Word or text script into the open project (or starts a new one).
+
+What's different from the desktop connector, because a Premiere panel can't run Python or read any path on disk: images come from the Library (or **pick** a file) instead of a folder, the background worker is the panel's batch queue (it runs while Premiere is open), and `export_unit` also builds the bin and sequence in Premiere. PDF scripts are read by Claude directly; `split_script` needs a text or Word script.
+
 ### Library
 Everything you've made, with buttons to add it to your project, animate it, copy its prompt or delete it.
 
@@ -112,13 +124,17 @@ Everything you've made, with buttons to add it to your project, animate it, copy
 
 You need **Premiere Pro 25.6 or newer** (the version that runs UXP panels).
 
+**Quickest: the installer file.** Double-click `AI-Studio-1.1.0.ccx` (in `premiere/dist/`). Creative Cloud installs it; confirm the warning about a plugin from outside the Marketplace. Then in Premiere: **Window → UXP Plugins → AI Studio**. If Creative Cloud won't open it, use the developer route below.
+
+**Developer route:**
+
 1. Install **Adobe UXP Developer Tool** from the Creative Cloud app (search "UXP Developer Tool" under *All apps*).
 2. Download this project (green **Code** button → **Download ZIP**) and unzip it.
 3. Open UXP Developer Tool → **Add Plugin** → choose `manifest.json` in the unzipped folder.
 4. With Premiere Pro open, press **Load** next to *AI Studio*.
 5. In Premiere: **Window → UXP Plugins → AI Studio**. Dock the panel wherever you like.
 
-To share it with your team as a single installable file, press **••• → Package** in UXP Developer Tool. That creates a `.ccx` file anyone can double-click to install.
+To rebuild the installer after changing anything: `node tools/package-ccx.mjs` (writes `../dist/AI-Studio-<version>.ccx`). UXP Developer Tool's **••• → Package** makes the same file.
 
 ## Connect your accounts
 
@@ -135,6 +151,10 @@ You only need the services you plan to use. For example, Claude + BytePlus is en
 
 Your keys are stored in your computer's secure keychain (through UXP's secure storage) and are only sent to their own service.
 
+**If a key is rejected:** under each box the panel shows which key is saved (first and last characters and its length), so a wrong or partial paste is easy to spot. Spaces, line breaks, quotes and whole lines like `ARK_API_KEY=…` or `Bearer …` are removed automatically when you save. **Save & check** costs nothing and says what's wrong in plain words: an Access Key pasted where the ModelArk key goes, a key from the other ModelArk region (it tries BytePlus Southeast Asia and Volcengine and keeps the one that works), Higgsfield's two ways of sending the key (it tries both), or a Claude account that can't use the chosen model.
+
+*Fixed in 1.1:* every saved key could come back corrupted after Premiere restarted (some versions return keychain values as UTF-16), so every service rejected it. Keys are now saved as UTF-8 and read back either way, with a fallback when the keychain refuses to store them. The Claude check also used to send a full prompt with beta options, so an account without them looked like a rejected key; it now just lists models.
+
 ---
 
 ## Good to know
@@ -149,9 +169,11 @@ Your keys are stored in your computer's secure keychain (through UXP's secure st
 
 Claude uses the same prompt-writing skills as the Seedance Production connector, in [`skills/`](skills):
 
+- `cinedance-prompt-builder.md`: every final Seedance prompt, and repairs (CINEDANCE v4.4.2)
+- `shotlist-builder/`: breaking a unit into shots (`SKILL.md`, 7 reference files on camera–emotion, micro-beats, plan types, prompt density and patterns, spatial blocking, style block, and the HTML template)
+- `acting-system.md`: character profiles, performance paragraphs, voice prompts
 - `lira-image-prompts.md`: picture prompts
-- `cinedance-prompt-builder.md`: video prompts
-- `shotlist-builder.md`: storyboards
+- `connector-guide.md`: the connector's step-by-step guide
 
 After editing one, run `node tools/build-skills.mjs` to repack them into `src/skills.generated.js`.
 
@@ -180,10 +202,13 @@ src/shots.js             @image handles, final prompts, takes, review, retry bud
 src/services/portraits.js  BytePlus portrait library (OpenAPI V4 signing) + private TOS bucket (TOS V4 signing)
 src/crypto.js            SHA-256 / HMAC for request signing
 src/services/*.js        Claude, BytePlus (Seedream/Seedance), Higgsfield clients
+src/mcp.js               the Seedance Production connector: all 45 tools, 4 workflows, options
+src/views/mcp.js         the MCP tab (Claude tool-use loop, tool runner, skills, options)
 src/app.js               Create, Library, Settings, batch bar
 src/demo.js              fake services for the browser preview
 tools/preview.mjs        screenshots of every screen (Playwright)
 tools/selftest.mjs       runs the real service code against fake servers
+tools/package-ccx.mjs    builds the installable .ccx
 ```
 
 - **Preview in a browser:** open `index.html?demo` for fake data, or `index.html` for the first-run view. API calls only work inside Premiere (browsers block them).

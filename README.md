@@ -26,3 +26,10 @@ npm run build   # type-checks and writes docs/index.html — commit it; Pages se
 ```
 
 After building, copy `docs/index.html` to the connector's `ui/canvas.html` to refresh the bundled fallback.
+
+## Premiere Pro panel
+
+[`premiere/AI-Studio`](premiere/AI-Studio) is the **AI Studio** panel for Premiere Pro, with the whole Seedance Production
+connector in its MCP tab (all tools, workflows, skills and options). The installer is
+[`premiere/dist/AI-Studio-1.1.0.ccx`](premiere/dist/AI-Studio-1.1.0.ccx); see the panel's README for install and checks
+(`node tools/selftest.mjs`, `node tools/package-ccx.mjs`).

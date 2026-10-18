@@ -26,14 +26,27 @@
     return "";
   }
 
+  /**
+   * The two ways Higgsfield takes credentials: "Authorization: Key id:secret" (Cloud API and its SDK) or
+   * hf-api-key / hf-secret headers (the platform API). Save & check finds the one this account uses.
+   */
+  function authFor(style, cred) {
+    if (style === "hf") {
+      const i = cred.indexOf(":");
+      return { "hf-api-key": cred.slice(0, i), "hf-secret": cred.slice(i + 1) };
+    }
+    return { Authorization: "Key " + cred };
+  }
+
   function cfg() {
     const cred = credential();
     if (!cred) throw new ServiceError(NAME, "Add your Higgsfield key and secret in Settings first (or the combined KEY_ID:KEY_SECRET in the first box).");
-    return { base: (Studio.store.settings.higgsfieldBaseUrl || BASES[0]).replace(/\/+$/, ""), auth: "Key " + cred };
+    const s = Studio.store.settings;
+    return { base: (s.higgsfieldBaseUrl || BASES[0]).replace(/\/+$/, ""), auth: authFor(s.higgsfieldAuth || "key", cred), cred };
   }
 
   function headers(auth) {
-    return { Authorization: auth, "Content-Type": "application/json" };
+    return Object.assign({ "Content-Type": "application/json" }, auth);
   }
 
   function parseExtra(text) {
@@ -112,35 +125,39 @@
    * If the saved address refuses, the other known address is tried and kept if it works.
    */
   async function test() {
-    const { auth } = cfg();
-    const saved = (Studio.store.settings.higgsfieldBaseUrl || BASES[0]).replace(/\/+$/, "");
+    const { cred } = cfg();
+    const s = Studio.store.settings;
+    const saved = (s.higgsfieldBaseUrl || BASES[0]).replace(/\/+$/, "");
     const bases = [saved].concat(BASES.filter((b) => b !== saved));
+    const styles = [s.higgsfieldAuth || "key"].concat(["key", "hf"].filter((x) => x !== (s.higgsfieldAuth || "key")));
     let last = null;
     for (const base of bases) {
-      let resp;
-      try {
-        resp = await fetch(base + "/files/generate-upload-url", {
-          method: "POST",
-          headers: headers(auth),
-          body: JSON.stringify({ content_type: "image/png" }),
-        });
-      } catch (e) {
-        last = { status: 0, text: String(e) };
-        continue;
+      for (const style of styles) {
+        let resp;
+        try {
+          resp = await fetch(base + "/files/generate-upload-url", {
+            method: "POST",
+            headers: headers(authFor(style, cred)),
+            body: JSON.stringify({ content_type: "image/png" }),
+          });
+        } catch (e) {
+          last = last || { status: 0, text: String(e) };
+          break; // this address can't be reached at all; try the next one
+        }
+        const text = await resp.text();
+        if (resp.ok) {
+          if (base !== saved || style !== (s.higgsfieldAuth || "key")) Studio.store.saveSettings({ higgsfieldBaseUrl: base, higgsfieldAuth: style });
+          return true;
+        }
+        if (!last || last.status === 0 || resp.status === 401 || resp.status === 403) last = { status: resp.status, text };
       }
-      const text = await resp.text();
-      if (resp.ok) {
-        if (base !== saved) Studio.store.saveSettings({ higgsfieldBaseUrl: base });
-        return true;
-      }
-      last = { status: resp.status, text };
     }
     if (!last || last.status === 0) throw new ServiceError(NAME, "Couldn't reach Higgsfield. Check your internet connection.", last && last.text);
     const said = (last.text || "").slice(0, 300);
     if (last.status === 401 || last.status === 403) {
       throw new ServiceError(
         NAME,
-        "Higgsfield didn't accept this key. Copy the API key ID and secret again from cloud.higgsfield.ai (or paste the combined KEY_ID:KEY_SECRET into the first box), and check the account has API credits.",
+        "Higgsfield didn't accept this key. Copy the API key ID and secret again from cloud.higgsfield.ai (or paste the combined KEY_ID:KEY_SECRET into the first box), and check the account has API credits. Saved: " + Studio.store.fingerprint(cred) + ".",
         "HTTP " + last.status + ": " + said
       );
     }

@@ -81,13 +81,37 @@
 
   // ---------- secrets (API keys) ----------
 
+  /**
+   * Keys go into UXP's secure storage as explicit UTF-8 bytes and come back as bytes. Older builds saved
+   * plain strings, which some Premiere versions hand back as UTF-16 (a zero byte after every letter):
+   * that turned every saved key into garbage after a restart, so every service rejected it.
+   */
+  function decodeSecret(v) {
+    if (v == null) return "";
+    if (typeof v === "string") return v.replace(/\u0000/g, "");
+    const arr = v instanceof Uint8Array ? v : new Uint8Array(v.buffer ? v.buffer : v);
+    let zerosOdd = 0;
+    for (let i = 1; i < arr.length; i += 2) if (arr[i] === 0) zerosOdd++;
+    if (arr.length >= 4 && zerosOdd >= arr.length / 2 - 1) {
+      let s = "";
+      for (let i = 0; i + 1 < arr.length; i += 2) s += String.fromCharCode(arr[i] | (arr[i + 1] << 8));
+      return s.replace(/\u0000/g, "");
+    }
+    return bytesToString(arr).replace(/\u0000/g, "");
+  }
+
+  function hasSecureStorage() {
+    return !!(isUXP && uxp.storage && uxp.storage.secureStorage);
+  }
+
   async function getSecret(name) {
-    if (isUXP && uxp.storage && uxp.storage.secureStorage) {
+    if (hasSecureStorage()) {
       try {
         const v = await uxp.storage.secureStorage.getItem(SECRET_PREFIX + name);
-        return v ? bytesToString(v) : "";
+        const text = decodeSecret(v);
+        if (text) return text;
       } catch (e) {
-        return "";
+        /* keychain unavailable: try the fallback below */
       }
     }
     try {
@@ -97,11 +121,25 @@
     }
   }
 
+  /** Returns where the key was kept: "keychain" or "panel" (when the keychain refuses it). */
   async function setSecret(name, value) {
-    if (isUXP && uxp.storage && uxp.storage.secureStorage) {
-      if (value) await uxp.storage.secureStorage.setItem(SECRET_PREFIX + name, value);
-      else await uxp.storage.secureStorage.removeItem(SECRET_PREFIX + name);
-      return;
+    if (hasSecureStorage()) {
+      try {
+        if (value) await uxp.storage.secureStorage.setItem(SECRET_PREFIX + name, new TextEncoder().encode(value));
+        else await uxp.storage.secureStorage.removeItem(SECRET_PREFIX + name);
+        // Read it back: a keychain that silently mangles it is as bad as one that refuses it.
+        const back = value ? decodeSecret(await uxp.storage.secureStorage.getItem(SECRET_PREFIX + name)) : "";
+        if (back === (value || "")) {
+          try {
+            localStorage.removeItem(SECRET_PREFIX + name);
+          } catch (e) {
+            /* nothing kept there */
+          }
+          return "keychain";
+        }
+      } catch (e) {
+        console.warn("Secure storage refused " + name + "; keeping it in the panel's own storage", e);
+      }
     }
     try {
       if (value) localStorage.setItem(SECRET_PREFIX + name, value);
@@ -109,6 +147,7 @@
     } catch (e) {
       /* preview only */
     }
+    return "panel";
   }
 
   // ---------- plain preferences ----------

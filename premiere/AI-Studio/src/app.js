@@ -637,6 +637,17 @@
 
   // ---------- Settings ----------
 
+  /** A key box, with which key is saved (first and last characters only) so a wrong paste is easy to spot. */
+  function keyField(f) {
+    const v = store.secrets[f.secret];
+    const where = store.secretWhere[f.secret];
+    return (
+      '<label class="field-label">' + f.label + '</label><div class="key-row"><input type="' + (ui.reveal[f.secret] ? "text" : "password") + '" data-secret="' + f.secret + '" placeholder="' + esc(f.placeholder) + '" value="' + esc(v) + '" autocomplete="off" spellcheck="false" />' +
+      '<button class="btn small ghost" data-action="reveal" data-id="' + f.secret + '">' + (ui.reveal[f.secret] ? "Hide" : "Show") + "</button></div>" +
+      (v ? '<div class="help key-fp">Saved: ' + esc(store.fingerprint(v)) + (where === "panel" ? " · kept in the panel (the keychain refused it)" : where === "session" ? " · this session only (couldn't be stored)" : "") + "</div>" : "")
+    );
+  }
+
   function serviceCard(id, name, what, fields, link) {
     const st = ui.test[id];
     const badge =
@@ -650,13 +661,7 @@
     return (
       '<section class="card"><div class="service-head"><div class="logo ' + id + '">' + { claude: "C", byteplus: "B+", higgsfield: "H" }[id] + "</div>" +
       '<div class="service-text"><b>' + name + "</b><small>" + what + "</small></div>" + badge + "</div>" +
-      fields
-        .map(
-          (f) =>
-            '<label class="field-label">' + f.label + '</label><div class="key-row"><input type="' + (ui.reveal[f.secret] ? "text" : "password") + '" data-secret="' + f.secret + '" placeholder="' + esc(f.placeholder) + '" value="' + esc(store.secrets[f.secret]) + '" />' +
-            '<button class="btn small ghost" data-action="reveal" data-id="' + f.secret + '">' + (ui.reveal[f.secret] ? "Hide" : "Show") + "</button></div>"
-        )
-        .join("") +
+      fields.map(keyField).join("") +
       '<div class="row" style="margin-top:8px"><a data-action="open" data-url="' + link.url + '">' + link.label + ' ↗</a><span class="spacer"></span>' +
       '<button class="btn small primary" data-action="save-test" data-id="' + id + '">Save & check</button></div>' +
       (ui.test[id + "Msg"] ? '<div class="test-result ' + (store.status[id] === "problem" ? "bad" : "ok") + '">' + esc(ui.test[id + "Msg"]) + "</div>" : "") +
@@ -693,13 +698,7 @@
       [
         { label: "Access Key ID", secret: "byteplusAk", placeholder: "AKLT…" },
         { label: "Secret Access Key", secret: "byteplusSk", placeholder: "Shown once when you create the key" },
-      ]
-        .map(
-          (f) =>
-            '<label class="field-label">' + f.label + '</label><div class="key-row"><input type="' + (ui.reveal[f.secret] ? "text" : "password") + '" data-secret="' + f.secret + '" placeholder="' + esc(f.placeholder) + '" value="' + esc(store.secrets[f.secret]) + '" />' +
-            '<button class="btn small ghost" data-action="reveal" data-id="' + f.secret + '">' + (ui.reveal[f.secret] ? "Hide" : "Show") + "</button></div>"
-        )
-        .join("") +
+      ].map(keyField).join("") +
       '<div class="row" style="margin-top:8px"><a data-action="open" data-url="https://console.byteplus.com/iam/identitymanage/user">BytePlus IAM ↗</a><span class="spacer"></span>' +
       '<button class="btn small primary" data-action="pt-test"' + (pt === "testing" ? " disabled" : "") + ">" + (pt === "testing" ? "Checking…" : "Save & check") + "</button></div>" +
       (Array.isArray(pt)
@@ -861,6 +860,7 @@
       assets: () => Studio.assetsView.render(),
       uploads: () => Studio.uploadsView.render(),
       library: renderLibrary,
+      mcp: () => Studio.mcpView.render(),
       settings: renderSettings,
     };
     // Keep the scroll position across redraws (UXP may reset it when the content is replaced).
@@ -1014,7 +1014,7 @@
 
   document.addEventListener("input", (e) => {
     const t = e.target;
-    if (Studio.panels.onInput(t) || Studio.uploadsView.onInput(t) || Studio.scriptView.onInput(t)) return;
+    if (Studio.panels.onInput(t) || Studio.uploadsView.onInput(t) || Studio.scriptView.onInput(t) || Studio.mcpView.onInput(t)) return;
     const bind = t.getAttribute("data-bind");
     if (bind === "idea") ui.idea = t.value;
     else if (bind === "improved") ui.improved = t.value;
@@ -1059,7 +1059,7 @@
     else if (ui.tab === "assets" && !typing()) Studio.assetsView.render();
   });
 
-  Object.assign(actions, Studio.scriptView.actions, Studio.assetsView.actions, Studio.uploadsView.actions, Studio.panels.actions, {
+  Object.assign(actions, Studio.scriptView.actions, Studio.assetsView.actions, Studio.uploadsView.actions, Studio.panels.actions, Studio.mcpView.actions, {
     "set-model": (el) => {
       const kind = el.getAttribute("data-kind");
       if (ui[kind].engine === "byteplus") store.saveSettings(kind === "image" ? { seedreamModel: el.value } : { seedanceModel: el.value });

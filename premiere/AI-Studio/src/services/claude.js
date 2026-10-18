@@ -92,6 +92,31 @@
     return readMessage(data, !!args.format);
   }
 
+  /**
+   * One raw Messages API request (used by the MCP tab's tool-use loop): returns the whole message so
+   * the caller can append its content unchanged, thinking blocks included. Same fallback handling and
+   * spending log as call().
+   */
+  async function messages(body) {
+    const req = Object.assign({}, body);
+    const fallbackOk = useFallbacks && !/haiku/.test(req.model);
+    if (fallbackOk) req.fallbacks = "default";
+    let data;
+    try {
+      data = await requestJSON(NAME, API_URL, { method: "POST", headers: headers(fallbackOk ? FALLBACK_BETA : ""), body: JSON.stringify(req) });
+    } catch (e) {
+      if (fallbackOk && /fallback/i.test(e.detail || "")) {
+        useFallbacks = false;
+        return messages(body);
+      }
+      throw e;
+    }
+    if (data.usage && Studio.pricing) {
+      Studio.pricing.record({ service: "Claude", model: data.model || req.model, kind: "text", usd: Studio.pricing.claudePrice(req.model, data.usage) });
+    }
+    return data;
+  }
+
   function clean(text) {
     return text
       .replace(/^```[a-z]*\s*/i, "")
@@ -497,8 +522,34 @@
     await requestJSON(NAME, BATCH_URL + "/" + id + "/cancel", { method: "POST", headers: headers() });
   }
 
+  /**
+   * Key check that costs nothing: list models (GET /v1/models), then look up the chosen model.
+   * The old check sent a full prompt with beta options, so an account without those options looked
+   * like a rejected key.
+   */
   async function test() {
-    await call({ system: "Reply with the single word: ready", messages: [{ role: "user", content: "ping" }], maxTokens: 2000 });
+    const k = key();
+    const fp = Studio.store.fingerprint(k);
+    if (/^sk-ant-admin/.test(k)) throw new ServiceError(NAME, "That's an Admin key (sk-ant-admin…). Create a normal API key under console.anthropic.com → API keys.", fp);
+    if (!/^sk-ant-/.test(k)) throw new ServiceError(NAME, "That doesn't look like a Claude key (they start with sk-ant-). Check you copied the Anthropic one, not another service's.", fp);
+    const h = { "x-api-key": k, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" };
+    let resp;
+    try {
+      resp = await fetch("https://api.anthropic.com/v1/models?limit=1", { headers: h });
+    } catch (e) {
+      throw new ServiceError(NAME, "Couldn't reach Claude. Check your internet connection (and that Premiere allows the panel network access).", String(e));
+    }
+    const text = await resp.text();
+    if (resp.status === 401) throw new ServiceError(NAME, "Claude didn't accept this key. It may have been deleted or mistyped. Saved key: " + fp + ".", text.slice(0, 300));
+    if (resp.status === 403) throw new ServiceError(NAME, "This key isn't allowed to use the API (organization or workspace permissions, or billing not set up).", text.slice(0, 300));
+    if (!resp.ok) throw new ServiceError(NAME, "Claude answered with an error (" + resp.status + ").", text.slice(0, 300));
+    const model = Studio.store.settings.claudeModel;
+    try {
+      const m = await fetch("https://api.anthropic.com/v1/models/" + encodeURIComponent(model), { headers: h });
+      if (m.status === 404) throw new ServiceError(NAME, "Your key works, but this account can't use " + model + ". Pick another Claude model in Settings → Advanced.");
+    } catch (e) {
+      if (e instanceof ServiceError) throw e;
+    }
     return true;
   }
 
@@ -517,6 +568,7 @@
     getBatch,
     batchResults,
     cancelBatch,
+    messages,
     test,
   };
 })();
