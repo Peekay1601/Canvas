@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Studio</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark"><span></span></div>
+          <div class="brand-name">AI Studio</div>
+        </div>
+        <div class="status-row" id="status-row"></div>
+      </header>
+
+      <nav class="tabs" id="tabs">
+        <button class="tab" data-action="tab" data-tab="create">Create</button>
+        <button class="tab" data-action="tab" data-tab="script">Script</button>
+        <button class="tab" data-action="tab" data-tab="assets">Assets</button>
+        <button class="tab" data-action="tab" data-tab="uploads">Uploads <span class="tab-count" id="up-count"></span></button>
+        <button class="tab" data-action="tab" data-tab="library">Library <span class="tab-count" id="lib-count"></span></button>
+        <button class="tab icon-tab" data-action="tab" data-tab="settings" title="Settings" id="settings-tab"></button>
+      </nav>
+
+      <main id="view" class="view"></main>
+      <div id="batchbar" class="batchbar hidden"></div>
+      <button id="chat-fab" class="chat-fab" data-action="cc-open" title="Ask Claude for ideas or changes"><span>✦</span> Ask Claude</button>
+      <div id="toasts" class="toasts"></div>
+    </div>
+
+    <script src="src/platform.js"></script>
+    <script src="src/services/http.js"></script>
+    <script src="src/store.js"></script>
+    <script src="src/pricing.js"></script>
+    <script src="src/skills.generated.js"></script>
+    <script src="src/services/claude.js"></script>
+    <script src="src/services/byteplus.js"></script>
+    <script src="src/services/higgsfield.js"></script>
+    <script src="src/jobs.js"></script>
+    <script src="src/docx.js"></script>
+    <script src="src/crypto.js"></script>
+    <script src="src/services/portraits.js"></script>
+    <script src="src/queue.js"></script>
+    <script src="src/references.js"></script>
+    <script src="src/shots.js"></script>
+    <script src="src/production.js"></script>
+    <script src="src/uploads.js"></script>
+    <script src="src/changes.js"></script>
+    <script src="src/demo.js"></script>
+    <script src="src/views/panels.js"></script>
+    <script src="src/views/script.js"></script>
+    <script src="src/views/assets.js"></script>
+    <script src="src/views/uploads.js"></script>
+    <script src="src/app.js"></script>
+  </body>
+</html>
