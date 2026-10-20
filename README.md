@@ -26,3 +26,8 @@ npm run build   # type-checks and writes docs/index.html — commit it; Pages se
 ```
 
 After building, copy `docs/index.html` to the connector's `ui/canvas.html` to refresh the bundled fallback.
+
+## Writers' Room
+
+`writers-room/` is a separate Claude Code setup for script development. It has six agents (emotional, logic, retention,
+world/canon, cold audience and a judge) that debate any screenplay in rounds. See [writers-room/README.md](writers-room/README.md).
