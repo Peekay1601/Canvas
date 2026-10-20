@@ -1,0 +1,8 @@
+1. **HOOK**: INT. AAROGYA RECEPTION — SEVEN MONTHS AGO — NIGHT (FLASHBACK). Arjun fills in a form. Behind him, Meera, feverish on a wheelchair, whispers into her phone: "Karthik… naaku bhayam ga undi." Arjun's pen stops at "EMERGENCY CONTACT". *Shift:* dread.
+2. INT. WARD — SEVEN MONTHS AGO — 6 A.M. (FLASHBACK). Through the ward glass Arjun watches Karthik arrive with an idli parcel and a charger; Meera, grey with fever, lights up. Arjun looks back at the form and writes Karthik's number. (Under 30 seconds in all.) *Shift:* dread → quiet heartbreak.
+3. INT. KARTHIK'S CAR — DAY (PRESENT). Rain, wipers. Meera holds the folded form in her lap, unread by him. Karthik hums along to a track he mixed. She almost asks, then doesn't. *Objective:* decide whether to tell him. *Shift:* heartbreak → withholding.
+4. INT. MEERA'S BUILDING, STAIRWELL — DAY. The lift is broken. He carries her bag up four floors and won't let her take it. At the door, breathless, they're close. *Shift:* withholding → longing.
+5. **TURN**: INT. MEERA'S DOORWAY — CONTINUOUS. Meera: "Nenu neeku emi avutanu, Karthik?" He holds her gaze, then: "Rest teesko. Tablets time ki veskunte chaalu." He goes down the stairs. *Shift:* longing → rejection.
+6. **ENDING**: INT. MEERA'S FLAT — CONTINUOUS. She leans on the closed door. The phone lights up with Arjun: "Accident gurinchi vinnanu. Are you okay? Can we meet?" *Shift:* rejection → temptation.
+
+Continuity: Arjun saw Karthik arrive at 6 a.m. during the dengue admission and then wrote his number; Meera has the form copy; Karthik hasn't seen it; Meera's flat is on the fourth floor and the lift is broken; Arjun knows about the accident (through his mother and Padma).

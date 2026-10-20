@@ -1,0 +1,38 @@
+{
+  "name": "script-builder-mcp",
+  "version": "0.2.0",
+  "private": true,
+  "description": "MCP server that develops a complete screenplay from a single idea",
+  "type": "module",
+  "bin": {
+    "script-builder-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "stdio": "node dist/index.js --stdio",
+    "dev": "tsc && node dist/index.js",
+    "package": "bash package.sh"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "pdf-lib": "^1.17.1",
+    "playwright-core": "1.56.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  },
+  "license": "MIT",
+  "files": [
+    "dist",
+    "fonts",
+    "README.md",
+    "manifest.json"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "script-builder": {
+      "command": "node",
+      "args": ["../script-builder-mcp/dist/index.js", "--stdio"],
+      "env": { "SCRIPT_BUILDER_DATA": "projects" }
+    }
+  }
+}

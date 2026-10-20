@@ -1,0 +1,93 @@
+# Emergency Contact
+
+**Logline:** After a rain-slick scooty accident, a fiercely independent Hyderabad designer finds her no-label situationship at her bedside — because her ex quietly listed him as her emergency contact months ago. Between the man who shows up but won't name it and the man who named it but never showed up, she must decide whether love means settling for half.
+
+## Episode 1: He's Not My Boyfriend
+Meera wakes in Aarogya Hospital after skidding her scooty on the wet Biodiversity flyover: fractured left wrist, overnight observation for a mild concussion. Karthik is already there, asleep in the chair, studio headphones still round his neck and a wet helmet on his lap. Nurse Jyothi assumes he is the boyfriend; Meera corrects her, and Jyothi asks if she wants him to leave. Meera can't answer. Karthik stays the whole night, quietly handling water, the drip, her cracked phone; we glimpse two years of ease between them. At dawn his mother calls and, with Meera listening, he tells her he's at the hospital with 'someone from work'.
+
+- Hook: Meera: 'Nurse, he's not my boyfriend.' Jyothi: 'Okay. Do you want him to leave?' A long silence.
+- Turn: The night of quiet care makes us believe he loves her, then his phone call to his mother takes it back.
+- Ending: 'Office lo okaru, Amma. Someone from work.' Meera, eyes open, heard every word.
+- Emotion: ache (6/10)
+- Characters: Meera, Karthik, Jyothi, Sarala (voice)
+
+## Episode 2: Who Called You?
+Morning. Meera's cracked phone shows 11 missed calls from Karthik between 9:40 and 10:05 pm: he was calling her after the hospital called him. She asks how he knew; he says the hospital said he is her emergency contact. She never listed anyone. Her mother Padma calls; Meera lies that she's at office, and Padma mentions she met 'Arjun vaalla amma' at the temple. Meera's face changes. At discharge Jyothi asks her to confirm or change the emergency contact and shows the old form: her dengue admission seven months ago, relationship 'friend', in handwriting that isn't hers. Meera says 'later', then sees the signature.
+
+- Hook: Close on the cracked lock screen: '11 missed calls — Karthik ❤'. Meera quietly edits his name and deletes the heart.
+- Turn: Karthik didn't choose to come. A form called him, and she never wrote that form.
+- Ending: The signature on the form: 'Arjun Varma'. The name her mother just said.
+- Emotion: suspicion (5/10)
+- Characters: Meera, Karthik, Jyothi, Padma (voice)
+
+## Episode 3: The Form
+Karthik drives Meera home in the rain and carries her bag up four floors because the lift is broken. A flashback of under 30 seconds, seven months ago: Arjun fills her dengue admission form while she whispers 'Karthik… naaku bhayam ga undi' into her phone. His pen pauses at 'Emergency contact'. At 6 a.m. Karthik arrives with idli and a charger, and Arjun watches through the ward glass as Meera brightens. Arjun writes the number. Back in the present, at her door, Meera asks Karthik, 'Nenu neeku emi avutanu?' He deflects, telling her to rest, and leaves. Then Arjun's message lights up her phone.
+
+- Hook: Flashback: Arjun's pen stops at 'EMERGENCY CONTACT'. Behind him, Meera whispers Karthik's name into her phone.
+- Turn: The flashback reveals Arjun saw the truth before she did, and her question at the door gets no answer.
+- Ending: Arjun's text: 'Accident gurinchi vinnanu. Are you okay? Can we meet?'
+- Emotion: longing (6/10)
+- Characters: Meera, Karthik, Arjun (flashback)
+
+## Episode 4: The Ex Who Proposed
+Meera meets Arjun at a Kondapur café, cast and all. He's softer than she remembers, and his two phones stay in his bag. He confesses he wrote Karthik's number: she called Karthik, not him, when she was scared, and at 6 a.m. Karthik was the one who came. That's why he ended it a week later without explaining. Meera is shaken; for seven months she had blamed him for leaving. Arjun says he has changed and asks for another chance. She doesn't say yes, but she doesn't say no.
+
+- Hook: Arjun, before she even sits: 'Aa form nene raasa, Meeru.'
+- Turn: The ex she blamed turns out to be the one person who saw her clearly, and he still wants her.
+- Ending: Arjun: 'Inkosaari try cheddama? Ee saari nenu untanu.' Meera stares at her cast.
+- Emotion: vulnerability (7/10)
+- Characters: Meera, Arjun
+
+## Episode 5: Someone From Work
+Karthik turns up at Meera's flat with groceries and a mango and makes pesarattu while she directs him one-handed; the old easy intimacy is back in three quick beats. Arjun's message pops up on her phone and Karthik sees it. He shrugs: 'Nee istam.' Only the camera sees his hand grip the pan as the pesarattu burns. By 0:50 Meera asks why she was 'someone from work' to his mother. Karthik goes silent, then leaves, saying it's late. Alone, Meera replies to Arjun.
+
+- Hook: Karthik at her door with grocery bags and a mango, already rolling up his sleeves.
+- Turn: She asks the real question, and he chooses the door over the answer.
+- Ending: Meera types to Arjun: 'Saturday. Okay.' Sends. In the kitchen, the burnt pesarattu.
+- Emotion: hurt (7/10)
+- Characters: Meera, Karthik, Arjun (text)
+
+## Episode 6: Present Tense
+Saturday date with Arjun at a rooftop restaurant. He puts his phones face-down, and Meera is touched. Then he lays out the plan: Margasira muhurtham, a flat in Kondapur, his mother already talking to hers. He talks over her twice and never notices her wincing as her wrist throbs. She realises he offers a title, not presence, and that she has checked her phone for Karthik four times. It rings: Karthik, voice breaking. His mother has been admitted in Warangal with chest pain. Arjun, to his credit, grabs his keys and drives her to the bus stand himself.
+
+- Hook: Arjun, sliding both phones face-down: 'Ee roju only you.'
+- Turn: The man who always shows up is the one falling apart, and the one he calls is her.
+- Ending: At the MGBS bus stand, Arjun watches her run to Karthik. Karthik: 'Naaku em cheyyalo ardham kaavatledu.' She takes his hand.
+- Emotion: fear (8/10)
+- Characters: Meera, Arjun, Karthik
+
+## Episode 7: Warangal
+On the overnight bus Karthik can't stop shaking; Meera rests her cast over his hand. At the Warangal hospital she becomes the dependable one, dealing with doctors and forms while he sits frozen. In the night Sarala, stable now, recognises her: 'the girl he talks to at 1 a.m.' She says a girl who rides all night to a stranger's bedside is not 'someone from work'. She tells Meera that Karthik's father left after twenty years and that Karthik watched her wait at the gate: 'He thinks naming a thing makes it leave.' In the morning a nurse asks for a second emergency contact. Sarala tells Karthik to write the girl's number, and he holds the pen over the form.
+
+- Hook: Night bus window, rain. Karthik's hand trembling on his knee; Meera puts her cast over it.
+- Turn: We learn why Karthik can't say it, and he is asked to write her name.
+- Ending: The pen hovers over 'Emergency Contact 2'. Karthik doesn't move.
+- Emotion: tenderness (8/10)
+- Characters: Meera, Karthik, Sarala, Ward nurse
+
+## Episode 8: The Pen
+Cold open: Karthik sets the uncapped pen down and says it isn't necessary. Meera says nothing. At the Warangal bus stand at dawn, with the Hyderabad bus honking, she tells him calmly she can't be the person he calls in an emergency but never names: 'Nenu nee emergency ni, nee life kaadu.' He has no answer. She boards alone; he stays for his mother. On the bus her mother Padma calls, thrilled: Arjun's mother has invited them to lunch on Sunday to 'talk properly'.
+
+- Hook: Close on the pen being set down on the form, uncapped.
+- Turn: Meera walks away from Karthik, and the Arjun option gets real and fast.
+- Ending: Padma: 'Sunday lunch ki Lakshmi garu pilicharu! Vastunnav kada, Meeru?' Meera, watching Karthik shrink through the bus window: 'Vastanu, Amma.'
+- Emotion: resolve (7/10)
+- Characters: Meera, Karthik, Padma (voice)
+
+## Episode 9: Neither
+Sunday lunch at the Varmas' in Jubilee Hills. Padma sees the cast for the first time; Meera never told her about the accident, and the hurt silences her. Lakshmi arrives with sweets and the purohit's muhurtham list. Midway Arjun takes a client call at the table: the same absence in a nicer shirt. In the garden Meera tells Arjun kindly and clearly that he read the form right but drew the wrong conclusion: she never let herself ask anyone for more. She says no. Padma, who overheard, says if Meera couldn't tell her about the accident, she can't tell her own heart either, and backs her daughter's choice. That night Meera types 'Amma' as her emergency contact in the hospital app, thumb over Save. A notification arrives instead.
+
+- Hook: Lakshmi, before the rice is served: 'Margasira lo manchi muhurtham undi, Padma garu!'
+- Turn: She turns down the offer of a name, and her mother turns from pressure to ally.
+- Ending: Notification: 'Karthik shared a folder with you: work.' Inside: 214 voice notes, all hers, two years of them.
+- Emotion: liberation (8/10)
+- Characters: Meera, Arjun, Padma, Lakshmi
+
+## Episode 10: Emergency Contact
+Next morning at Aarogya the cast comes off. At reception Jyothi asks Meera to update her emergency contact, and the opening silence returns. Karthik arrives, back from Warangal. His phone rings: Sarala. He puts her on speaker in front of everyone: 'Amma, Meera tho unnanu. Work lo kaadu. Naa manishi.' Meera admits her half: 'Nenu kooda eppudu adagaledu.' Then she hands him the form and pen: 'Ithe nuvve raayi. Relationship column kooda.' He writes it, and signs the inside of the removed cast. Arjun texts that his Pune transfer is accepted, effective next month: 'Take care, Meeru.' Jyothi: 'So… boyfriend?' Meera, smiling: 'Inka decide cheyyaledu.'
+
+- Hook: Jyothi, sliding a form across: 'Emergency contact update cheyyala, madam?' The long silence again.
+- Turn: Karthik names her out loud, and Meera makes him write it himself.
+- Ending: Final shot: the form, 'Relationship: ____', his handwriting filling the blank, out of focus. Meera's smile.
+- Emotion: bittersweet hope (9/10)
+- Characters: Meera, Karthik, Jyothi, Sarala (voice), Arjun (text)

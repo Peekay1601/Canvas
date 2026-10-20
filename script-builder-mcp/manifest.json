@@ -1,0 +1,49 @@
+{
+  "manifest_version": "0.3",
+  "name": "script-builder",
+  "display_name": "Script Builder",
+  "version": "0.2.0",
+  "description": "Develop a complete screenplay from a single idea, reviewed by a six-agent writers' room, exported as Fountain, Final Draft (.fdx) and PDF.",
+  "long_description": "Concept → story bible → outline → writers'-room review of the outline → beat sheets → screenplay pages → runtime balancing → writers'-room review of the complete script, repeated until the judge approves → Fountain, FDX and PDF. Microdrama defaults: every episode under 2:30 and the series between 55 and 60 minutes. Dialogue in any language, including natural conversational Telugu, with correct Indic rendering in the PDF. Without an API key, Claude writes each part itself (guided mode); with one, the server writes everything in the background.",
+  "author": { "name": "Script Builder" },
+  "license": "MIT",
+  "keywords": ["screenplay", "script", "writers room", "microdrama", "fountain", "final draft", "telugu"],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js", "--stdio"],
+      "env": {
+        "SCRIPT_BUILDER_DATA": "${user_config.data_dir}",
+        "ANTHROPIC_API_KEY": "${user_config.anthropic_api_key}",
+        "SCRIPT_MODEL": "${user_config.model}"
+      }
+    }
+  },
+  "user_config": {
+    "data_dir": {
+      "type": "directory",
+      "title": "Projects folder",
+      "description": "Where scripts are saved (one folder per project, in the writers'-room layout).",
+      "default": "${DOCUMENTS}/Script Builder",
+      "required": true
+    },
+    "anthropic_api_key": {
+      "type": "string",
+      "title": "Anthropic API key (optional)",
+      "description": "Leave empty for guided mode, where Claude writes each part in the chat. With a key, the server writes the whole script in the background.",
+      "sensitive": true,
+      "required": false,
+      "default": ""
+    },
+    "model": {
+      "type": "string",
+      "title": "Model (engine mode)",
+      "description": "Claude model the server writes with when an API key is set.",
+      "default": "claude-opus-5-5",
+      "required": false
+    }
+  },
+  "compatibility": { "runtimes": { "node": ">=20.0.0" } }
+}

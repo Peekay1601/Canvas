@@ -31,3 +31,11 @@ After building, copy `docs/index.html` to the connector's `ui/canvas.html` to re
 
 `writers-room/` is a separate Claude Code setup for script development. It has six agents (emotional, logic, retention,
 world/canon, cold audience and a judge) that debate any screenplay in rounds. See [writers-room/README.md](writers-room/README.md).
+
+## Script Builder MCP
+
+`script-builder-mcp/` is an MCP server that turns one idea into a complete screenplay. A six-agent writers' room reviews
+the outline and the finished script, repeating until its judge approves. The server enforces runtime caps (microdrama:
+every episode under 2:30, series 55–60 minutes) and exports Fountain, Final Draft (.fdx) and PDF, with correct Telugu
+rendering. Downloads are in `script-builder-mcp/release/`. See
+[script-builder-mcp/README.md](script-builder-mcp/README.md).

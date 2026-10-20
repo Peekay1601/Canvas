@@ -81,6 +81,20 @@ session-summary.md
 Memory between sessions lives in `room/decision_log.md`, `room/open_questions.md` and `bible/continuity.md`.
 These files are updated only by `/room-decide`, after you rule.
 
+## Build a whole script from one idea: `/build-script`
+
+`/build-script <your idea>` runs the **Script Builder MCP** (`../script-builder-mcp`, registered in `.mcp.json`). It runs the
+full pipeline: concept, bible, outline, room review of the outline, beats, pages, then the six agents review the complete
+script, with corrections rewritten and re-reviewed until Rudra approves. It exports Fountain, Final Draft and PDF into
+`projects/<slug>/script/`.
+
+House rules: every episode is under 2:30, and the series runs 55–60 minutes.
+
+Build the server once first: `cd ../script-builder-mcp && npm ci && npx tsc`.
+
+The test run, **Emergency Contact** (10 episodes in Telugu, about 19 minutes; the 55–60 minute rule was deliberately
+not applied), is in `projects/emergency-contact-50fd/`.
+
 ## Is MCP possible?
 
 **Yes, but you don't need it to run the room.** The agents, debate and judge all run in Claude Code using files.
@@ -93,10 +107,8 @@ MCP is useful at the edges:
 2. **Feeding your production pipeline.** Once a draft is approved, the coordinator can call your Seedance Production
    connector, the MCP server behind the canvas in this repo, to push the approved episodes into
    Script → Assets → Shots.
-3. **Making the room a tool itself.** You can wrap the whole room as an MCP server built with the Claude Agent SDK and
-   exposing tools like `room_session(script, scope)`. Then you could start it from claude.ai or another app. This is a
-   bigger build. It only makes sense once the protocol is stable, and note that Agent Teams don't run inside Agent SDK
-   sessions, so that version would use the subagent-rounds mode.
+3. **Making the room a tool itself.** That is now built: `../script-builder-mcp`. It installs in Claude Desktop (`.mcpb`),
+   Claude Code, or as a hosted claude.ai custom connector.
 
 ## Tips
 

@@ -1,0 +1,201 @@
+{
+  "slug": "emergency-contact-50fd",
+  "createdAt": "2026-10-20T08:12:52.089Z",
+  "updatedAt": "2026-10-20T08:30:45.572Z",
+  "settings": {
+    "idea": "Emergency Contact. Premise: After a minor accident, a fiercely independent woman wakes up to find her situationship at the hospital. She never listed him as her emergency contact—her ex did, months earlier, because he realised who she called when life went wrong. The drama: The man who won’t call himself her boyfriend is dependable in a crisis. The ex who offered commitment was emotionally absent. She starts questioning whether she has to settle for either version of love. Opening hook: “Nurse, he’s not my boyfriend.” “Okay. Do you want him to leave?” A long silence. Episode cliffhanger: He stays all night, then introduces her to his mother over the phone as “someone from work.”",
+    "title": "Emergency Contact",
+    "format": "microdrama",
+    "units": 10,
+    "unitLength": "2 minutes",
+    "language": "Telugu",
+    "audience": "urban Telugu viewers 20-35 (Hyderabad, Bengaluru, Vijayawada), mobile-first",
+    "platform": "vertical microdrama app",
+    "genre": "romantic drama",
+    "tone": "Restrained, bittersweet romance",
+    "notes": "Episode 1 must open on the nurse exchange and end on the cliffhanger: he stays all night, then introduces her to his mother over the phone as someone from work. Dialogue in natural, conversational Telugu.",
+    "reviewOutline": true,
+    "maxUnitSeconds": 150,
+    "maxTotalMinutes": 60,
+    "reviewScript": true,
+    "maxReviewRounds": 3
+  },
+  "parts": {
+    "concept": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:14:24.386Z",
+      "revisions": 1
+    },
+    "bible": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:15:10.532Z",
+      "revisions": 1
+    },
+    "outline": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:15:52.543Z",
+      "revisions": 1
+    },
+    "review": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:17:16.903Z",
+      "revisions": 1
+    },
+    "revised_outline": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:17:51.306Z",
+      "revisions": 1
+    },
+    "beats:1": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:19:02.298Z",
+      "revisions": 1
+    },
+    "beats:2": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:19:02.715Z",
+      "revisions": 1
+    },
+    "beats:3": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:19:03.175Z",
+      "revisions": 1
+    },
+    "beats:4": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:19:03.671Z",
+      "revisions": 1
+    },
+    "beats:5": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:19:04.118Z",
+      "revisions": 1
+    },
+    "beats:6": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:19:04.569Z",
+      "revisions": 1
+    },
+    "beats:7": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:19:05.039Z",
+      "revisions": 1
+    },
+    "beats:8": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:19:05.418Z",
+      "revisions": 1
+    },
+    "beats:9": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:19:05.802Z",
+      "revisions": 1
+    },
+    "beats:10": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:19:06.164Z",
+      "revisions": 1
+    },
+    "draft:1": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:29:17.537Z",
+      "revisions": 2
+    },
+    "draft:2": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:22:06.481Z",
+      "revisions": 1
+    },
+    "draft:3": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:30:28.708Z",
+      "revisions": 2,
+      "notes": [
+        "Add an on-screen super '7 MONTHS AGO' on the first flashback shot (reception), and a super 'NOW' when we return to Karthik's car. No other changes."
+      ]
+    },
+    "draft:4": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:22:07.663Z",
+      "revisions": 1
+    },
+    "draft:5": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:22:08.087Z",
+      "revisions": 1
+    },
+    "draft:6": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:22:08.549Z",
+      "revisions": 1
+    },
+    "draft:7": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:22:08.938Z",
+      "revisions": 1
+    },
+    "draft:8": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:30:29.119Z",
+      "revisions": 2,
+      "notes": [
+        "(1) After Karthik's 'అవసరం లేదు, అమ్మా. నేను ఉన్నా కదా.', Sarala turns to Meera: 'నీ number నాకు ఇవ్వు. వాడు రాయకపోయినా, నేను రాసుకుంటా.' Meera gives it, and Sarala saves it while Karthik watches. (2) Replace 'Angiogram normal.' with 'Angiogram అయిపోయింది. Stent అవసరం లేదంట. Medicines చాలు.' Keep everything else, and stay under 2:30."
+      ]
+    },
+    "draft:9": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:22:09.904Z",
+      "revisions": 1
+    },
+    "draft:10": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:30:29.541Z",
+      "revisions": 2,
+      "notes": [
+        "When Karthik arrives at reception, before 'Meera.', he explains how he knew: 'అమ్మ చెప్పింది... ఇవాళ నీ cast తీసేస్తారని.' Meera, a flicker: she and Sarala have been texting. Keep everything else, and stay under 2:30."
+      ]
+    },
+    "assembly": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:30:45.572Z",
+      "revisions": 3
+    },
+    "script_review:1": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:30:16.871Z",
+      "revisions": 1
+    },
+    "script_review:2": {
+      "status": "done",
+      "updatedAt": "2026-10-20T08:30:44.946Z",
+      "revisions": 1
+    }
+  },
+  "job": {
+    "status": "idle"
+  },
+  "usage": {
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0
+  },
+  "runtimes": {
+    "draft:1": 126,
+    "draft:2": 126,
+    "draft:3": 122,
+    "draft:4": 85,
+    "draft:5": 96,
+    "draft:6": 118,
+    "draft:7": 124,
+    "draft:8": 103,
+    "draft:9": 142,
+    "draft:10": 119
+  },
+  "balanceRounds": 0,
+  "review": {
+    "round": 2,
+    "approved": true
+  }
+}
